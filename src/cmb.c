@@ -230,7 +230,7 @@ int8_t readMatsChunk(cmb_t* c)
 			tcor = &(mat->tCoords[j]);
 			tcor->matrixMode = *(uint8_t*)(data + offs), offs += 0x01;
 			tcor->refCam = *(uint8_t*)(data + offs), offs += 0x01;
-			tcor->mapMethod = *(uint8_t*)(data + offs), offs += 0x01;
+			tcor->mapMehtod = *(uint8_t*)(data + offs), offs += 0x01;
 			tcor->CoordIndex = *(uint8_t*)(data + offs), offs += 0x01;
 			memcpy(tcor->scale, data + offs, 8), offs += 0x08;
 			tcor->rotation = *(float*)(data + offs), offs += 0x04;
@@ -660,8 +660,6 @@ void delCmb(cmb_t c)
 	{
 		if(c.matsC->mats != NULL)
 			free(c.matsC->mats);
-		if(c.matsC->tCom != NULL)
-			free(c.matsC->tCom);
 		free(c.matsC);
 	}
 

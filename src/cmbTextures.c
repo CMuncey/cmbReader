@@ -43,11 +43,11 @@ uint32_t getFmtSize(uint32_t f)
 		case RGBA4:
 		case RGBA5551:
 		case RGB565:
-		case LA8:
 			return(2);
 		case ETC1:
 		case ETC1A4:
 		case LA4:
+		case LA8:
 		case A8:
 		case L8:
 		case L4:

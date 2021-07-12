@@ -159,7 +159,7 @@ void printTexCoords(texCoords_t t)
 {
 	printf("\t\tTEXCOORDS matrix mode:      0x%02x\n", t.matrixMode);
 	printf("\t\tTEXCOORDS reference camera: 0x%02x\n", t.refCam);
-	printf("\t\tTEXCOORDS mapping mehtod:   0x%02x\n", t.mapMethod);
+	printf("\t\tTEXCOORDS mapping mehtod:   0x%02x\n", t.mapMehtod);
 	printf("\t\tTEXCOORDS coordinate index: 0x%02x\n", t.CoordIndex);
 	printf("\t\tTEXCOORDS scale:            %3.2f, %3.2f\n", t.scale[0], t.scale[1]);
 	printf("\t\tTEXCOORDS rotation:         %3.2f\n", t.rotation);

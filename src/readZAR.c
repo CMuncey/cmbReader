@@ -35,14 +35,14 @@ typedef struct
 	uint32_t fnOffs;
 } metadata_t;
 
-const char* fixFN(char* s)
+/* This is bad */
+char* fixFN(char* s)
 {
 	int i;
 
 	for(i = strlen(s) - 1; i >= 0; --i)
-		if(s[i] == '\\')
+		if(s[i] == '/')
 			return(s + i + 1);
-	return("");
 }
 
 int main(int argc, char** argv)
@@ -50,10 +50,10 @@ int main(int argc, char** argv)
 	header_t* head;
 	filetype_t* fts;
 	metadata_t* mds;
-	const char* fn;
-	int i, j, k, l;
 	uint8_t* data;
+	char* fn;
 	FILE* f;
+	int i, j, k, l;
 
 	if(argc < 2)
 	{
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
 	fts  = (filetype_t*) (data + head->ftOffs);
 	mds  = (metadata_t*) (data + head->fmOffs);
 
-	/* Print out the data */
+	/* Print out the data
 	printf("HEADER:\n");
 	printf("\tMagic:           %.4s\n", head->magic);
 	printf("\tSize:            %u\n", head->size);
@@ -89,30 +89,38 @@ int main(int argc, char** argv)
 	printf("\tMetadata offset: 0x%08x\n", head->fmOffs);
 	printf("\tData offset:     0x%08x\n", head->datOffs);
 	printf("\tQueen:           %5s\n", head->queen);
-
 	printf("\n");
-	for(i = k = 0; i < head->nTypes; ++i)
+	*/
+
+	for(i = k = l = 0; i < head->nTypes; ++i)
 	{
 		if(fts[i].nFiles)
 		{
 			printf("%d %s files\n", fts[i].nFiles, data + fts[i].tnOffs);
+
 			for(j = 1; j <= fts[i].nFiles; ++j, ++k)
 			{
-				printf("\t%3d: %s (%d bytes)", j, data + mds[k].fnOffs, mds[k].size);
-				//if(strncmp((char*)(data + fts[i].tnOffs), "ctxb", 5) == 0)
-				//{
-				//	printf("... Dumping");
-				//	fn = fixFN((char*)(data + mds[k].fnOffs));
-				//	f = fopen(fn, "wb");
-				//	l = *(int*)(data + head->datOffs + (k << 2));
-				//	fwrite(data + l, mds[k].size, 1, f);
-				//	fclose(f);
-				//}
-				printf("\n");
+				printf("\t%3d: %s (%d bytes)\n", j, data + mds[k].fnOffs, mds[k].size);
+
+				/* Dump the cmb files, I'll make a good one later maybe
+				if(strncmp(data + fts[i].tnOffs, "cmb", 4) == 0)
+				{
+					fn = fixFN(data + mds[k].fnOffs);
+					printf("\tDumping %s... ", fn);
+					f = fopen(fn, "wb");
+					l = *(int*)(data + head->datOffs + (k << 2));
+					fwrite(data + l, mds[k].size, 1, f);
+					fclose(f);
+					printf("done\n");
+				}
+				*/
 			}
-			printf("\n");
+
+			//printf("\n");
 		}
 	}
 
+
+	free(data);
 	return(0);
 }

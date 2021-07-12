@@ -3,39 +3,42 @@
 
 #include <string>
 #include "glm/glm.hpp"
-
-#include "cmb.h"
 #include "matsChunk.h"
 #include "cmbConstants.h"
 #include "cmbShader.h"
+#include "cmb.h"
 using namespace std;
 
-struct sepdParams_t
+struct cmbMaterial_t
 {
-	float   posScale;
-	float colorScale;
-	float  tex0Scale;
-	float  tex1Scale;
-	float  tex2Scale;
-	float boneWScale;
-	int      boneDim;
-	int    hasVColor;
-};
+	int8_t hasTex0;
+	int8_t hasTex1;
+	int8_t hasTex2;
+	int8_t hasFCol;
 
-struct matParams_t
-{
-	glm::mat4   texMat[3];
-	glm::vec4 constCol[6];
-	uint32_t   texInfo[4];
-	float           depth;
-};
+	int32_t aFunc;
+	float    aRef;
 
-struct renderParams_t
-{
-	glm::mat4*  projMat;
-	glm::mat4*  viewMat;
-	glm::mat4* modelMat;
-	glm::mat3*  normMat;
+	uint32_t tex0;
+	uint32_t tex1;
+	uint32_t tex2;
+
+	float  nrmScl;
+	float  colScl;
+	float tex0Scl;
+	float tex1Scl;
+	float tex2Scl;
+
+	glm::vec4 ambiC;
+	glm::vec4 diffC;
+	glm::vec4 spc0C;
+//	glm::vec4 spc1C;
+	glm::vec4 emisC;
+	glm::vec4 buffC;
+	glm::vec4 constC[6];
+
+	int nTCom;
+	texCombiner_t tCom[6];
 
 	int  blendingOn;
 	int     bSrcRGB;
@@ -48,46 +51,36 @@ struct renderParams_t
 
 	int depthWrite;
 	int  depthFunc;
+	float    depth;
 
 	int cullMode;
 };
 
 struct cmbMesh_t
 {
-	unsigned int    nInd, VAO, VBOs[8];
-	unsigned int EBO, UBOs[2], TEXs[3];
-
-	cmbShader_t   shader;
-	renderParams_t rendP;
-	sepdParams_t   sepdP;
-	matParams_t     matP;
+	unsigned int nInd, VAO, VBOs[8];
+	unsigned int       EBO, TEXs[3];
+	cmbMaterial_t               mat;
 };
 
 struct cmbModel_t
 {
-	int  nMeshes, nBones;
-	cmbMesh_t*    meshes;
-	glm::mat4*     bones;
-
-	glm::mat4  projMat;
-	glm::mat4  viewMat;
-	glm::mat4 modelMat;
-	glm::mat3  normMat;
-
-	/* Debug */
-	int         meshNum;
+	int meshNum;
+	int nMeshes, nBones;
+	cmbMesh_t*   meshes;
+	glm::mat4*    bones;
 };
 
 /* Model functions */
 int8_t makeCmbModel(cmbModel_t*, const cmb_t*);
 glm::mat4* makeBones(const cmb_t*);
-void drawCmbModel(const cmbModel_t*);
+void drawCmbModel(const cmbModel_t*, cmbShader_t* s);
 void delCmbModel(cmbModel_t*);
 
 /* Mesh functions */
 uint8_t getDTSize(picaDataType p);
-void makeCmbMesh(cmbMesh_t*, int, const cmb_t*, cmbModel_t*);
-void drawCmbMesh(cmbMesh_t*);
+void makeCmbMesh(cmbMesh_t*, int, const cmb_t*, const glm::mat4*);
+void drawCmbMesh(const cmbMesh_t*, cmbShader_t* s);
 void delCmbMesh(cmbMesh_t*);
 
 #endif

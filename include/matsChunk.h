@@ -32,7 +32,7 @@ typedef struct
 {
 	uint8_t matrixMode;
 	uint8_t     refCam;
-	uint8_t  mapMethod;
+	uint8_t  mapMehtod;
 	uint8_t CoordIndex;
 	float     scale[2];
 	float     rotation;

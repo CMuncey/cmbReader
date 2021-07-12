@@ -1,21 +1,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <string.h>
 #include "cmb.h"
 #include "sklmChunk.h"
 #include "cmbConstants.h"
 #include "cmbTextures.h"
 
-#define WHITE   "\033[0m"
-#define RED     "\033[1;31m"
-#define GREEN   "\033[1;32m"
-#define YELLOW  "\033[1;33m"
-#define BLUE    "\033[1;34m"
-#define MAGENTA "\033[1;35m"
-#define CYAN    "\033[1;36m"
+/* https://wiki.cloudmodding.com/oot/3D:CMB_format */
 
-/* Texture combiner stuff */
 void dumpTextures(const cmb_t*);
 void getTexEnvInfo(const cmb_t*);
 const char* tcLookUp1(uint16_t);
@@ -35,17 +27,11 @@ int main(int argc, char** argv)
 	if((i = readCmb(&cmb, argv[1])) != 0)
 		fprintf(stderr, "Error reading cmb file: %d\n", i);
 
-
-	for(i = 0; i < cmb.sklmC->shpC->nSEPDs; ++i)
-	{
-	}
-
-
-//	printCmb(cmb);
-//	printf("\n");
-//	getTexEnvInfo(&cmb);
-//	printf("\n");
-//	dumpTextures(&cmb);
+	printCmb(cmb);
+	printf("\n");
+	getTexEnvInfo(&cmb);
+	printf("\n");
+	dumpTextures(&cmb);
 
 	delCmb(cmb);
 
@@ -104,6 +90,21 @@ void dumpTextures(const cmb_t* cmb)
 	}
 }
 
+//Material X:
+//	Tex Env Y:
+//		Constant Color:
+//		Buffer RGB:
+//		Buffer Alpha:
+//		RGB:
+//			source0.????
+//			source1.????
+//			source2.????
+//			RGB combine OP
+//		Alpha:
+//			source0.????
+//			source1.????
+//			source2.????
+//			RGB combine OP
 void getTexEnvInfo(const cmb_t* c)
 {
 	int i, j;
