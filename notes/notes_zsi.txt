@@ -1,0 +1,69 @@
+// tokinoma_info.zsi
+// Command  1 - Alternate setups: 180e 0000 e004 0000
+// Starting points for alternate setups:
+//  1: 00000000 (default setup)
+//  2: 00000000 (default setup)
+//  3: 00000000 (default setup)
+//  4: 00000068 -> 1506 1300 7f00 0000 (just the first one, read it like normal, stop at 0x14)
+//  5: 000000D0 -> 1506 1300 d605 0001
+//  6: 00000138 -> 1506 1300 7f00 0000
+//  7: 000001A0 -> 1506 1300 a705 0001
+//  8: 00000208 -> 1506 1300 a705 0001
+//  9: 00000270 -> 1506 1300 a705 0001
+// 10: 000002D8 -> 1506 1300 a705 0001
+// 11: 00000340 -> 1506 1300 a705 0001
+// 12: 000003A8 -> 1506 1300 a705 0001
+// 13: 00000410 -> 1506 1300 7f00 0000
+// 14: 00000478 -> 1506 1300 bf05 0001
+
+// Command  2 - Sound settings: 1506 1300 a705 0001
+// 15xxyy00zz??00?? -> x = settings config, y = night SFX, z = music sequence
+
+// Command  3 - Rooms: 0402 0000 1805 0000
+// 04xx0000yyyyyyyy -> x = number of rooms, y = address of rooms list
+// Leads to the name of the .zsi file of the room, 0x44 bytes in OoT
+// Still need to open and read those zsi files :(
+
+// Command  4 - Doors: 0e01 0000 a005 0000
+// Looks to be the same as 64?
+// 0Exx0000yyyyyyyy -> x = number of doors, y = address of door list
+// Door list:
+
+// Command  5 - Camera/WorldMap: 1900 0000 0e00 0000
+// Same as 64, but with different locations for data?
+// 19xx0000yy000000 -> x = camera movement, y = map highlight
+// Actual X location unconfirmed
+
+// Command  6 - Collision: 0300 0000 f444 0000
+// The actual data here seems different than 64
+
+// Command  7 - Entrances: 0608 0000 2045 0000
+// 06xx0000yyyyyyyy -> x = number of entrances, y = address of entrance list
+// entrance list: pprr -> p = start position, r = room to load
+
+// Command  8 - Special objects: 0700 0000 0200 0000
+// 07xx0000yyyyyyyy -> x = elf_message file, y = global object file
+// y = 2 -> gameplay_field_keep
+// Actual X location unknown
+
+// Command  9 - Start positions: 0008 0000 3045 0000
+// 00xx0000yyyyyyyy -> x = number of start positions, y = address of positions
+// Positions use normal actor list, same as 64
+
+// Command 10 - Skybox: 1100 0000 0000 0100
+// 11000000xx0y0z00 -> x = skybox number, y = cloud settings, z = light settings
+
+// Command 11 - Exits: 1300 0000 b045 0000
+// 13000000yyyyyyyy -> y = exits list
+// Exit list: 2 byte indices into entrance table
+// No length, engine just hopes it's valid
+// Looks like just 2 in this one, Outside ToT (Child day) & chamber of sages
+// Yeah, the lighting starts right after
+
+// Command 12 - Lighting: 0f12 0000 b445 0000
+// 0fxx0000yyyyyyyy -> x = number of lighting settings, y = address of lighting settings
+// Seems to be the same format as 64?
+
+// Command 13 - End: 1400 0000 0000 0000
+
+// (Setup 4) - Cutscenes: 1700 0000 544a 0000

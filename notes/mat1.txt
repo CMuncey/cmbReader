@@ -1,0 +1,123 @@
+	MATERIAL fragment ligh on:             false
+	MATERIAL vertex light on:              true
+	MATERIAL hemisphere light on:          true
+	MATERIAL hemisphere occlusion on:      false
+	MATERIAL face culling on:              true
+	MATERIAL polygon offs on:              false
+	MATERIAL polygon offset:               0
+	MATERIAL texture mappers used:         2
+	MATERIAL texture coords used:          2
+	MATERIAL textures:
+		MATTEX texture index:            0
+		MATTEX minification filter:      0x2601
+		MATTEX magnification filter:     0x2601
+		MATTEX wrap S mode:              0x8370
+		MATTEX wrap T mode:              0x8370
+		MATTEX min level of detail bias: 0.00
+		MATTEX level of detail bias:     0.00
+		MATTEX border color:             0, 0, 0, 255
+
+		MATTEX texture index:            1
+		MATTEX minification filter:      0x2601
+		MATTEX magnification filter:     0x2601
+		MATTEX wrap S mode:              0x2901
+		MATTEX wrap T mode:              0x2901
+		MATTEX min level of detail bias: 0.00
+		MATTEX level of detail bias:     0.00
+		MATTEX border color:             0, 0, 0, 255
+
+		MATTEX texture index:            -1
+		MATTEX minification filter:      0x0000
+		MATTEX magnification filter:     0x0000
+		MATTEX wrap S mode:              0x0000
+		MATTEX wrap T mode:              0x0000
+		MATTEX min level of detail bias: 0.00
+		MATTEX level of detail bias:     0.00
+		MATTEX border color:             0, 0, 0, 0
+	MATERIAL texture coordinates:
+		TEXCOORDS matrix mode:      0x00
+		TEXCOORDS reference camera: 0x00
+		TEXCOORDS mapping mehtod:   0x01
+		TEXCOORDS coordinate index: 0x00
+		TEXCOORDS scale:            1.00, 1.00
+		TEXCOORDS rotation:         0.00
+		TEXCOORDS translation:      0.00, 0.00
+
+		TEXCOORDS matrix mode:      0x00
+		TEXCOORDS reference camera: 0x00
+		TEXCOORDS mapping mehtod:   0x01
+		TEXCOORDS coordinate index: 0x00
+		TEXCOORDS scale:            3.00, 3.00
+		TEXCOORDS rotation:         0.00
+		TEXCOORDS translation:      0.00, 0.00
+
+		TEXCOORDS matrix mode:      0x00
+		TEXCOORDS reference camera: 0x00
+		TEXCOORDS mapping mehtod:   0x00
+		TEXCOORDS coordinate index: 0x00
+		TEXCOORDS scale:            1.00, 1.00
+		TEXCOORDS rotation:         0.00
+		TEXCOORDS translation:      0.00, 0.00
+	MATERIAL emissive color:               0, 0, 0, 0
+	MATERIAL ambient color:                102, 102, 102, 0
+	MATERIAL diffuse color:                127, 127, 127, 255
+	MATERIAL specular 0 color:             255, 255, 255, 0
+	MATERIAL specular 1 color:             0, 0, 0, 0
+	MATERIAL constant 0 color:             0, 0, 0, 255
+	MATERIAL constant 1 color:             0, 0, 0, 255
+	MATERIAL constant 2 color:             0, 0, 0, 255
+	MATERIAL constant 3 color:             0, 0, 0, 255
+	MATERIAL constant 4 color:             0, 0, 0, 255
+	MATERIAL constant 5 color:             0, 0, 0, 255
+	MATERIAL buffer color:                 0.00, 0.00, 0.00, 1.00
+	MATERIAL bump texture:                 33984
+	MATERIAL bump mode:                    25288
+	MATERIAL is bump renormalise:          false
+	MATERIAL layer config:                 25264
+	MATERIAL fresnel selector:             25280
+	MATERIAL is clamp highlight:           false
+	MATERIAL distribution 0 on:            false
+	MATERIAL distribution 1 on:            false
+	MATERIAL geometric factor 0 on:        false
+	MATERIAL geometric factor 1 on:        false
+	MATERIAL reflection on:                false
+	MATERIAL reflectance R sampler off?:   fasle (1)
+	MATERIAL reflectance R sampler index:  255
+	MATERIAL reflectance R sampler input:  25248
+	MATERIAL reflectance R sampler scale:  1.00
+	MATERIAL reflectance G sampler off?:   fasle (1)
+	MATERIAL reflectance G sampler index:  255
+	MATERIAL reflectance G sampler input:  25248
+	MATERIAL reflectance G sampler scale:  1.00
+	MATERIAL reflectance B sampler off?:   fasle (1)
+	MATERIAL reflectance B sampler index:  255
+	MATERIAL reflectance B sampler input:  25248
+	MATERIAL reflectance B sampler scale:  1.00
+	MATERIAL distribution 0 sampler off?:  fasle (1)
+	MATERIAL distribution 0 sampler index: 255
+	MATERIAL distribution 0 sampler input: 25248
+	MATERIAL distribution 0 sampler scale: 1.00
+	MATERIAL distribution 1 sampler off?:  fasle (1)
+	MATERIAL distribution 1 sampler index: 255
+	MATERIAL distribution 1 sampler input: 25248
+	MATERIAL distribution 1 sampler scale: 1.00
+	MATERIAL fresnel 1 sampler off?:       fasle (1)
+	MATERIAL fresnel 1 sampler index:      255
+	MATERIAL fresnel 1 sampler input:      25248
+	MATERIAL fresnel 1 sampler scale:      1.00
+	MATERIAL used texture env stages:      4
+	MATERIAL texture env stages indices:   2, 3, 4, 5, -1, -1
+	MATERIAL alpha test on:                true
+	MATERIAL alpha reference value:        127
+	MATERIAL alpha func:                   0x0204
+	MATERIAL depth test on:                true
+	MATERIAL depth write on:               true
+	MATERIAL depth test func:              0x0201
+	MATERIAL blend mode:                   0x00000000
+	MATERIAL alpha source function:        0x0302
+	MATERIAL alpha destination function:   771
+	MATERIAL alpha equation:               0x00008006
+	MATERIAL color source function:        0x0001
+	MATERIAL color destination function:   0x0000
+	MATERIAL color equation:               0x00008006
+	MATERIAL blend color:                  0.00, 0.00, 0.00, 1.00

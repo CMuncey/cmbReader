@@ -1,0 +1,95 @@
+/* NoClip fragment shader for king dodongo material 1 */
+/* render.ts, start at DMPProgram constructor -> generateFragmentShader */
+
+precision mediump float;
+// Expected to be constant across the entire scene.
+layout(std140) uniform ub_SceneParams {
+	Mat4x4 u_Projection;
+}
+
+// Expected to change with each material.
+layout(std140) uniform ub_MaterialParams {
+	vec4 u_ConstantColor[6];
+	Mat4x3 u_TexMtx[3];
+	vec4 u_MatMisc[1];
+};
+
+// xyz are used by GenerateTextureCoord
+#define u_DepthOffset      (u_MatMisc[0].w)
+
+layout(std140) uniform ub_PrmParams {
+	Mat4x3 u_BoneMatrix[16];
+	Mat4x3 u_ViewMatrix;
+	vec4 u_PrmMisc[2];
+};
+
+#define u_PosScale        (u_PrmMisc[0].x)
+#define u_TexCoord0Scale  (u_PrmMisc[0].y)
+#define u_TexCoord1Scale  (u_PrmMisc[0].z)
+#define u_TexCoord2Scale  (u_PrmMisc[0].w)
+#define u_BoneWeightScale (u_PrmMisc[1].x)
+#define u_BoneDimension   (u_PrmMisc[1].y)
+#define u_UseVertexColor  (u_PrmMisc[1].z)
+
+uniform sampler2D u_Texture[3];
+
+in vec4 v_Color;
+in vec2 v_TexCoord0;
+in vec2 v_TexCoord1;
+in vec2 v_TexCoord2;
+
+in vec3 v_FogColor;
+in vec3 v_Normal;
+in float v_Depth;
+
+void main() {
+	vec4 t_CmbConstant;
+	vec4 t_CmbIn0, t_CmbIn1, t_CmbIn2; 
+	vec4 t_CmbOut, t_CmbOutBuffer;
+
+	/* Clamp material buffer color */
+	t_CmbOutBuffer = clamp(vec4(0.0f, 0.0f, 0.0f, 1.0f), vec4(0.0f), vec4(1.0f));
+
+	/* Constant index comes from texture combiner i */
+	/* Texture Combiners: 2, 3, 4, 5 */
+	/* Might be wrong? t_CmbOutBuffer uses bufferInputRGB twice instead of bufferInputAlpha for second */
+	/* Find where u_ConstantColor comes from */
+
+	// Texture Combiner stage 0
+	// Constant index 4
+	t_CmbConstant = u_ConstantColor[4];
+	t_CmbIn0 = vec4(texture(SAMPLER_2D(u_Texture[1]).rgb, v_TexCoord1), v_Color.aaaa.a);
+	t_CmbIn1 = vec4(t_CmbConstant.aaaa.rgb, texture(SAMPLER_2D(u_Texture[0]).aaaa.a));
+	t_CmbIn2 = vec4(v_Color.rgba.rgb, t_CmbConstant.aaaa.a));
+	t_CmbOut = vec4((t_CmbIn0 + t_CmbIn1) * t_CmbIn2).rgb, (t_CmbIn0 * t_CmbIn1).a);
+	t_CmbOutBuffer = vec4(t_CmbOutBuffer.rgb, t_CmbOutBuffer.a);
+
+	// Texture Combiner stage 1
+	// Constant index 0
+	/* Similar */
+
+	// Texture Combiner stage 2
+	// Constant index 5
+	/* Similar */
+
+	// Texture Combiner stage 3
+	// Constant index 0
+	/* Similar */
+
+	if(t_CmbOut.a > 127)
+		discard;
+
+	vec4 t_ResultColor = t_CmbOut;
+
+	#ifdef USE_VERTEX_NORMAL
+		t_ResultColor.rgba = vec4((v_Normal * 0.5 + 0.5), 1.0);
+	#endif
+
+	#ifdef USE_UV
+		t_ResultColor.rgba = vec4(v_TexCoord0.xy, 1.0, 1.0);
+	#endif
+
+	gl_FragColor = t_ResultColor;
+
+	gl_FragDepth = gl_FragCoord.z + u_DepthOffset;
+}
