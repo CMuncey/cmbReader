@@ -179,7 +179,7 @@ string cmbShader_t::makeFS(const cmb_t* cmb, int matInd)
 {
 	material_t* mat;
 	string s;
-	int i;
+	uint32_t i;
 
 	mat = &(cmb->matsC->mats[matInd]);
 
@@ -234,16 +234,16 @@ cmbShader_t::cmbShader_t(const cmb_t* cmb, int matInd)
 	fCode2 = fCode;
 	free(fCode);
 
-	/* Generate the rest of the fragment shader */
+	/* Generate the rest of the fragment shader out of texture combiners */
 	fCode2 += makeFS(cmb, matInd);
 
-if(matInd == 24)
-{
-printf("Shader for material %d\n", matInd);
-printf("========================================================================================\n");
-printf("%s\n", fCode2.c_str());
-printf("========================================================================================\n");
-}
+//if(matInd == 24)
+//{
+//printf("Shader for material %d\n", matInd);
+//printf("========================================================================================\n");
+//printf("%s\n", fCode2.c_str());
+//printf("========================================================================================\n");
+//}
 
 	/* Make the vertex shader */
 	vSh = glCreateShader(GL_VERTEX_SHADER);

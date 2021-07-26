@@ -27,10 +27,19 @@ uniform sampler2D tex2;
 
 vec4 fsFunc();
 
-void main()
+/* Temp depth lineariser thing for depth shader */
+float near = 0.1f;
+float far = 10.0f;
+float linDepth(float d)
 {
-	//FragColor = fsFunc() * vec4(fin.norm, 1.0f);
-	FragColor = fsFunc();
-	gl_FragDepth = gl_FragCoord.z + depth;
+	float z = (d * 2.0f) - 1.0f;
+	return((2.0f * near) / (far + near - (z * (far - near))));
 }
 
+void main()
+{
+	/* This is stupid, but it fixes the brightness issue on actors */
+	/* It was hard to notice on scenes, but actors were totally washed out */
+	FragColor = fsFunc() * 0.7f;
+	gl_FragDepth = gl_FragCoord.z + depth;
+}

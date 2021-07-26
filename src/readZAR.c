@@ -19,12 +19,13 @@ typedef struct
 
 /* The types of files found in the ZAR */
 /* There are header_t.nTypes of these */
+/* File list is file's index in total list of subfiles */
 typedef struct
 {
 	uint32_t nFiles;
 	uint32_t flOffs;
 	uint32_t tnOffs;
-	uint32_t    xxx;
+	uint32_t   ffff;
 } filetype_t;
 
 /* Data about each file in the archive */
@@ -50,8 +51,9 @@ int main(int argc, char** argv)
 	header_t* head;
 	filetype_t* fts;
 	metadata_t* mds;
-	const char* fn;
-	int i, j, k, l;
+//	const char* fn;
+//	int l;
+	int i, j, k;
 	uint8_t* data;
 	FILE* f;
 
@@ -76,6 +78,14 @@ int main(int argc, char** argv)
 	fclose(f);
 
 	head = (header_t*) data;
+
+	if(*(uint32_t*)(head->magic) != *(uint32_t*)("ZAR\x01"))
+	{
+		fprintf(stderr, "Error: ZAR magic number does not match\n");
+		fprintf(stderr, "\"ZAR\x91\" vs \"%.4s\"\n", head->magic);
+		return(1);
+	}
+
 	fts  = (filetype_t*) (data + head->ftOffs);
 	mds  = (metadata_t*) (data + head->fmOffs);
 
@@ -89,25 +99,42 @@ int main(int argc, char** argv)
 	printf("\tMetadata offset: 0x%08x\n", head->fmOffs);
 	printf("\tData offset:     0x%08x\n", head->datOffs);
 	printf("\tQueen:           %5s\n", head->queen);
-
 	printf("\n");
-	for(i = k = 0; i < head->nTypes; ++i)
+
+	/* Print file types info */
+//	for(i = 0; i < head->nTypes; ++i)
+//	{
+//		printf("Filetype %d\n", i);
+//		printf("\tNum files: %d\n", fts[i].nFiles);
+//		printf("\tFile list offset: 0x%08x\n", fts[i].flOffs);
+//		printf("\tType name offset: 0x%08x\n", fts[i].tnOffs);
+//		printf("\tType name: %s\n", data + fts[i].tnOffs);
+//		printf("\n");
+//	}
+
+	for(i = 0; i < head->nTypes; ++i)
 	{
 		if(fts[i].nFiles)
 		{
 			printf("%d %s files\n", fts[i].nFiles, data + fts[i].tnOffs);
-			for(j = 1; j <= fts[i].nFiles; ++j, ++k)
+			for(j = 0; j < fts[i].nFiles; ++j)
 			{
+				/* Get the index into the file list */
+				k = *(int*)(data + fts[i].flOffs + (j << 2));
 				printf("\t%3d: %s (%d bytes)", j, data + mds[k].fnOffs, mds[k].size);
-				//if(strncmp((char*)(data + fts[i].tnOffs), "ctxb", 5) == 0)
-				//{
-				//	printf("... Dumping");
-				//	fn = fixFN((char*)(data + mds[k].fnOffs));
-				//	f = fopen(fn, "wb");
-				//	l = *(int*)(data + head->datOffs + (k << 2));
-				//	fwrite(data + l, mds[k].size, 1, f);
-				//	fclose(f);
-				//}
+
+				/* Dump the desired filetypes */
+				/* This isn't very good, but that's fine */
+//				if(strncmp((char*)(data + fts[i].tnOffs), "ctxb", 5) == 0)
+//				{
+//					printf("... Dumping");
+//					fn = fixFN((char*)(data + mds[k].fnOffs));
+//					f = fopen(fn, "wb");
+//					l = *(int*)(data + head->datOffs + (k << 2));
+//					fwrite(data + l, mds[k].size, 1, f);
+//					fclose(f);
+//				}
+
 				printf("\n");
 			}
 			printf("\n");

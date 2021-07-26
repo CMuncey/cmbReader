@@ -1,7 +1,6 @@
 #ifndef CMBMODEL_H
 #define CMBMODEL_H
 
-#include <string>
 #include "glm/glm.hpp"
 
 #include "cmb.h"
@@ -65,9 +64,9 @@ struct cmbMesh_t
 
 struct cmbModel_t
 {
-	int  nMeshes, nBones;
-	cmbMesh_t*    meshes;
-	glm::mat4*     bones;
+	uint32_t nMeshes, nBones;
+	cmbMesh_t*        meshes;
+	glm::mat4*         bones;
 
 	glm::mat4  projMat;
 	glm::mat4  viewMat;

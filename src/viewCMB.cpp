@@ -20,8 +20,8 @@
 
 #define SWAP_INTERVAL 1
 #define WINDOW_NAME "Test"
-#define RESOLUTION 1
-#define FULLSCREEN 0
+#define RESOLUTION 4
+#define FULLSCREEN 1
 #define CAM_SPEED 2.5f
 #define SENSITIVITY 0.1f
 #define NEAR_PLANE 0.1f
@@ -161,6 +161,7 @@ int main(int argc, char** argv)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	//glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, 1);
 
 	/* Get the monitor */
 	if(FULLSCREEN)

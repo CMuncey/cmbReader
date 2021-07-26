@@ -11,9 +11,13 @@
 #include "cmb.h"
 using namespace std;
 
+/* Lots of room for improvement because many meshes re-use */
+/* materials and sepd chunks, so the data from each of those */
+/* can be read once and re-used in each mesh */
+
 int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 {
-	int i;
+	uint32_t i;
 
 	if(m == NULL)
 	{
@@ -44,7 +48,7 @@ glm::mat4* makeBones(const cmb_t* c)
 {
 	float sX, sY, sZ, cX, cY, cZ;
 	float mat[16];
-	int i, j, nBones;
+	int i, nBones;
 	glm::mat4* bones;
 	glm::vec3 scale;
 	bone_t* bone;
@@ -60,6 +64,7 @@ glm::mat4* makeBones(const cmb_t* c)
 		sZ = sin(bone->rot[2]), cZ = cos(bone->rot[2]);
 		scale = glm::vec3(bone->scale[0], bone->scale[1], bone->scale[2]);
 
+		/* There may be a glm function(s) to do this? */
 		/* Row 1 */
 		mat[0] = scale.x * (cY * cZ);
 		mat[1] = scale.x * (cY * sZ);
@@ -89,8 +94,9 @@ glm::mat4* makeBones(const cmb_t* c)
 		/* Multiply parent by child, in that order */
 		if(bone->pID != -1)
 		{
+			/* Sanity check, I don't think this ever happens */
 			if(bone->pID > bone->id)
-				printf("Bone came before parent\n");
+				printf("Bone %d came before parent %d\n", bone->id, bone->pID);
 			bones[i] = bones[bone->pID] * bones[i];
 		}
 	}
@@ -134,9 +140,9 @@ uint8_t getDTSize(picaDataType p)
 		case unsigned32Bit:
 		case float32Bit:
 			return(4);
+		default:
+			return(0);
 	}
-
-	return(0);
 }
 
 /* I probably need to redo this to account for bones, not sure */
@@ -147,16 +153,13 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 	uint32_t texInfo;
 	uint32_t* inds;
 	uint8_t* tmpPtr;
-	int constCol[4];
 	GLenum dtype;
 	mesh_t* cmbMesh;
 	sepdChunk_t* sepdC;
-	prmsChunk_t* prmsC;
 	prmChunk_t* prmC;
 	material_t* mat;
 	matTex_t* mTex;
 	texture_t* tex;
-	texCombiner_t* tc;
 	rgba_t col;
 
 	cmbMesh = &(c->sklmC->mshsC->meshes[meshNum]);
@@ -164,7 +167,9 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 	mat = &(c->matsC->mats[cmbMesh->matsInd]);
 
 	/* Compile the shader for the mesh */
-	/* This has potential for repeats, but making an array of them doesn't work :( */
+	/* This has potential for repeats, find a way to do it per material */
+	/* Keep them in model, but normal array won't work */
+	/* Try double array? */
 	m->shader = cmbShader_t(c, cmbMesh->matsInd);
 
 	/* Initialise the SEPD parameters */
@@ -208,7 +213,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 		dtype = (GLenum)sepdC->normals.datType;
 		m->sepdP.posScale = sepdC->normals.scale;
 
-		/* Normal mode 0 = read array */
+		/* Mode 0 = read array */
 		/* Mode 1 = constant value */
 		if(sepdC->normals.mode == 0)
 		{
@@ -315,6 +320,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 
 	/* Convert the indices to uint32_t */
 	/* Can probably get away with not doing this, just save type */
+	/* and give that to drawElements() later */
 	for(i = j = 0; i < sepdC->nPRMS; ++i)
 	{
 		prmC = sepdC->prmsC[i].prmC;
@@ -337,6 +343,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 
 	/* Load the actual textures */
 	/* TODO Should probably do this in the model instead */
+	/* since this can use repeats, just like shaders */
 	for(i = 0; i < mat->tMapUsed; ++i)
 	{
 		mTex = &(mat->textures[i]);
@@ -353,9 +360,9 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 		glTexParameteri(dtype, GL_TEXTURE_WRAP_T, mTex->WrapT);
 
 		/* Trilinear hacks from noclip, not sure if this really makes it look better */
-		//if(mTex->MinFilter == GL_LINEAR_MIPMAP_NEAREST)
-		//	glTexParameteri(dtype, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		//else
+		if(mTex->MinFilter == GL_LINEAR_MIPMAP_NEAREST)
+			glTexParameteri(dtype, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		else
 			glTexParameteri(dtype, GL_TEXTURE_MIN_FILTER, mTex->MinFilter);
 
 		glTexParameteri(dtype, GL_TEXTURE_MAG_FILTER, mTex->MagFilter);
@@ -368,7 +375,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 		free(tmpPtr);
 	}
 
-	/* Blending stuff */
+	/* Set the blending info stuff */
 	m->rendP.blendingOn = mat->blendEnabled;
 	if(mat->blendEnabled)
 	{
@@ -381,13 +388,13 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 		memcpy(m->rendP.bColor, mat->blendColor, 16);
 	}
 
-	/* Read the depth function */
+	/* Set the depth function, default to GL_LESS */
 	if(mat->depthTestOn)
 		m->rendP.depthFunc = mat->depthTestFunc;
 	else
 		m->rendP.depthFunc = GL_LESS;
 
-	/* Face culling mode */
+	/* Set the face culling stuff */
 	switch(mat->faceCullMode)
 	{
 		case 0:
@@ -405,7 +412,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 			break;
 	}
 
-	/* Get the material parameter data */
+	/* Set the material parameter stuff */
 	for(i = 0; i < 6; ++i)
 	{
 		col = mat->constCol[i];
@@ -413,30 +420,29 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 	}
 	for(i = 0; i < 3; ++i)
 	{
+		/* I think this is used for the scrolling textures? */
 		texInfo = ((uint32_t)(mat->tCoords[i].mapMethod) << 16);
 		texInfo |= mat->tCoords[i].CoordIndex;
 		m->matP.texInfo[i] = texInfo;
 	}
 	m->matP.depth = mat->depthOffset;
 
-if(meshNum == 15)
-{
-printf("Tex0Scale: %8.7f\n", m->sepdP.tex0Scale);
-printf("Tex1Scale: %8.7f\n", m->sepdP.tex1Scale);
-printf("Tex2Scale: %8.7f\n", m->sepdP.tex2Scale);
-printf("Const color[0]: %8.7f, %8.7f, %8.7f, %8.7f\n", m->matP.constCol[0].x, m->matP.constCol[0].y, m->matP.constCol[0].z, m->matP.constCol[0].w);
-printf("Const color[4]: %8.7f, %8.7f, %8.7f, %8.7f\n", m->matP.constCol[4].x, m->matP.constCol[4].y, m->matP.constCol[4].z, m->matP.constCol[4].w);
-printf("color scale: %8.7f\n", m->sepdP.colorScale);
-printf("has vertex color: %u\n", m->sepdP.hasVColor);
-printf("depth func: 0x%04x\n", m->rendP.depthFunc);
-printf("blending on: %d\n", m->rendP.blendingOn);
-printf("depth: %8.7f\n", m->matP.depth);
-}
+//if(meshNum == 15)
+//{
+//printf("Tex0Scale: %8.7f\n", m->sepdP.tex0Scale);
+//printf("Tex1Scale: %8.7f\n", m->sepdP.tex1Scale);
+//printf("Tex2Scale: %8.7f\n", m->sepdP.tex2Scale);
+//printf("Const color[0]: %8.7f, %8.7f, %8.7f, %8.7f\n", m->matP.constCol[0].x, m->matP.constCol[0].y, m->matP.constCol[0].z, m->matP.constCol[0].w);
+//printf("Const color[4]: %8.7f, %8.7f, %8.7f, %8.7f\n", m->matP.constCol[4].x, m->matP.constCol[4].y, m->matP.constCol[4].z, m->matP.constCol[4].w);
+//printf("color scale: %8.7f\n", m->sepdP.colorScale);
+//printf("has vertex color: %u\n", m->sepdP.hasVColor);
+//printf("depth func: 0x%04x\n", m->rendP.depthFunc);
+//printf("blending on: %d\n", m->rendP.blendingOn);
+//printf("depth: %8.7f\n", m->matP.depth);
+//}
 
 	/* Unbind stuff */
 	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glActiveTexture(0);
 
 	return;
@@ -458,6 +464,10 @@ void drawCmbMesh(cmbMesh_t* m)
 	m->shader.set3mf("norm", *(m->rendP.normMat));
 
 	/* Update uniform buffers */
+	/* 340 bytes per mesh per frame */
+	/* Might be able to do this in model, many meshes share sepd/mats */
+	/* that might mess up blending though, needing to draw transparent */
+	/* things before solid things */
 	dtype = GL_UNIFORM_BUFFER;
 	glBindBufferBase(dtype, 0, m->UBOs[0]);
 	glBufferData(dtype, sizeof(sepdParams_t), &m->sepdP, GL_DYNAMIC_DRAW);

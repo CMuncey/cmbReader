@@ -24,7 +24,7 @@ const char* tcLookUp2(uint16_t);
 int main(int argc, char** argv)
 {
 	cmb_t cmb;
-	int i, j, k;
+	int i;
 
 	if(argc < 2)
 	{
@@ -33,15 +33,12 @@ int main(int argc, char** argv)
 	}
 
 	if((i = readCmb(&cmb, argv[1])) != 0)
-		fprintf(stderr, "Error reading cmb file: %d\n", i);
-
-
-	for(i = 0; i < cmb.sklmC->shpC->nSEPDs; ++i)
 	{
+		fprintf(stderr, "Error reading cmb file: %d\n", i);
+		return(1);
 	}
 
-
-//	printCmb(cmb);
+	printCmb(cmb);
 //	printf("\n");
 //	getTexEnvInfo(&cmb);
 //	printf("\n");
