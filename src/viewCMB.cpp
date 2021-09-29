@@ -35,7 +35,7 @@ const float resolutions[] = {
 3440.0, 1440.0}; //4 -> 1440p 21:9
 
 cmbModel_t model;
-const char* windowName;
+char* windowName;
 char wf, fm, ce;
 float pX, pY, winX, winY, scale;
 mCamera_t cam;
@@ -136,7 +136,7 @@ int main(int argc, char** argv)
 	GLFWwindow* window;
 	GLFWmonitor* monitor;
 	float cTime, pTime, fTime, fov;
-	unsigned int tmp;
+	unsigned int tmp, nameLen;
 	glm::mat3 normMat;
 	glm::mat4 modelMat, viewMat;
 
@@ -152,7 +152,9 @@ int main(int argc, char** argv)
 	cTime = pTime = fTime = 0.0f;
 	winX = resolutions[(RESOLUTION * 2)];
 	winY = resolutions[(RESOLUTION * 2) + 1];
-	windowName = argv[1];
+	nameLen = strlen(argv[1]);
+	windowName = (char*)malloc(nameLen + 13);
+	sprintf(windowName, "%s | FPS: 0", argv[1]);
 
 	signal(SIGSEGV, debug_sigsegv_handler);
 
