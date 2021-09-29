@@ -7,11 +7,11 @@
 #include <signal.h>
 
 /* My stuff */
-#include "cmbShader.h"
+#include "cmbShader.hpp"
 #include "camera.h"
 #include "cmb.h"
 #include "sklmChunk.h"
-#include "cmbModel.h"
+#include "cmbModel.hpp"
 
 /* Math library for matrix/vectors */
 #include "glm/glm.hpp"

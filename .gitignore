@@ -8,3 +8,4 @@ tags
 ReadCMB
 ViewCMB
 compile_flags.txt
+src/?shader.glsl
