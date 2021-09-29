@@ -6,7 +6,7 @@
 #include "cmb.h"
 #include "matsChunk.h"
 #include "cmbConstants.h"
-#include "cmbShader.h"
+#include "cmbShader.hpp"
 using namespace std;
 
 struct sepdParams_t

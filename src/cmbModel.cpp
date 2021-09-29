@@ -6,8 +6,8 @@
 #include "cmbConstants.h"
 #include "cmbTextures.h"
 #include "sklmChunk.h"
-#include "cmbModel.h"
-#include "cmbShader.h"
+#include "cmbModel.hpp"
+#include "cmbShader.hpp"
 #include "cmb.h"
 using namespace std;
 

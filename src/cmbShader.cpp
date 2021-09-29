@@ -1,4 +1,3 @@
-#include "cmbShader.h"
 #include <string>
 #include <stdio.h>
 #include <glad/glad.h>
@@ -6,6 +5,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "cmbShader.hpp"
 #include "cmb.h"
 #include "matsChunk.h"
 using namespace std;
