@@ -1,0 +1,10 @@
+actors/
+scenes/
+obj/
+reference/
+notes/
+.vscode/
+tags
+ReadCMB
+ViewCMB
+compile_flags.txt
