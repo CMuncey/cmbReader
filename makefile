@@ -27,22 +27,22 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	$(CXX) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 ViewCMB: $(OBJDIR)/viewCMB.o $(OGL) $(CMB)
-	$(CXX) -o $@ $^ $(LIBS)
+	$(CXX) -o $@.out $^ $(LIBS)
 
 ReadCMB: $(OBJDIR)/readCMB.o $(CMB)
-	$(CC) -o $@ $^
+	$(CC) -o $@.out $^
 
 ReadZAR: $(OBJDIR)/readZAR.o
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS).out -o $@ $^
 
 ReadZSI: $(OBJDIR)/readZSI.o
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS).out -o $@ $^
 
 ReadCTXB: $(OBJDIR)/readCTXB.o
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS).out -o $@ $^
 
 Tags:
 	ctags -R * /usr/include/GLFW/* /usr/include/glad/*
 
 clean:
-	rm -f $(OBJDIR)/*.o ReadCMB ViewCMB Zar
+	rm -f $(OBJDIR)/*.o ReadCMB.out ViewCMB.out Zar.out

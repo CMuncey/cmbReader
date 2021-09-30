@@ -1,11 +1,9 @@
 actors/
 scenes/
-obj/
+obj/*.o
 reference/
 notes/
 .vscode/
-tags
-ReadCMB
-ViewCMB
+*.out
 compile_flags.txt
 src/?shader.glsl
