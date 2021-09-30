@@ -8,7 +8,7 @@
 
 /* My stuff */
 #include "cmbShader.hpp"
-#include "camera.h"
+#include "camera.hpp"
 #include "cmb.h"
 #include "sklmChunk.h"
 #include "cmbModel.hpp"
@@ -20,8 +20,8 @@
 
 #define SWAP_INTERVAL 1
 #define WINDOW_NAME "Test"
-#define RESOLUTION 4
-#define FULLSCREEN 1
+#define RESOLUTION 1
+#define FULLSCREEN 0
 #define CAM_SPEED 2.5f
 #define SENSITIVITY 0.1f
 #define NEAR_PLANE 0.1f
@@ -154,7 +154,7 @@ int main(int argc, char** argv)
 	winY = resolutions[(RESOLUTION * 2) + 1];
 	nameLen = strlen(argv[1]);
 	windowName = (char*)malloc(nameLen + 13);
-	sprintf(windowName, "%s | FPS: 0", argv[1]);
+	sprintf(windowName, "%s | FPS: ", argv[1]);
 
 	signal(SIGSEGV, debug_sigsegv_handler);
 
@@ -249,7 +249,6 @@ int main(int argc, char** argv)
 		glfwPollEvents();
 		pTime = cTime;
 		++tmp;
-//glfwSetWindowShouldClose(window, 1); //debug
 	}
 
 	/* Clean up */
