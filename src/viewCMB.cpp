@@ -201,7 +201,7 @@ int main(int argc, char** argv)
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	cam.setSpd(CAM_SPEED);
 
-	/* Make the model */
+	/* Make the model, don't need the cmb after */
 	readCmb(&cmb, argv[1]);
 	makeCmbModel(&model, &cmb);
 	delCmb(cmb);
@@ -218,7 +218,8 @@ int main(int argc, char** argv)
 		cTime = glfwGetTime();
 		if(glfwGetTime() - fTime >= 1.0f)
 		{
-			printf("FPS: %d\n", tmp);
+			sprintf(windowName + nameLen + 8, "%d", tmp);
+			glfwSetWindowTitle(window, windowName);
 			tmp = 0, fTime = glfwGetTime();
 		}
 

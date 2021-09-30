@@ -92,6 +92,7 @@ glm::mat4* makeBones(const cmb_t* c)
 		bones[i] = glm::make_mat4(mat);
 
 		/* Multiply parent by child, in that order */
+		/* Matrix multiplication isn't commutative */
 		if(bone->pID != -1)
 		{
 			/* Sanity check, I don't think this ever happens */
@@ -427,6 +428,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 	}
 	m->matP.depth = mat->depthOffset;
 
+/* I don't remember what this was for, I think temple of time */
 //if(meshNum == 15)
 //{
 //printf("Tex0Scale: %8.7f\n", m->sepdP.tex0Scale);
@@ -467,7 +469,7 @@ void drawCmbMesh(cmbMesh_t* m)
 	/* 340 bytes per mesh per frame */
 	/* Might be able to do this in model, many meshes share sepd/mats */
 	/* that might mess up blending though, needing to draw transparent */
-	/* things before solid things */
+	/* things before solid things (not that I do that yet) */
 	dtype = GL_UNIFORM_BUFFER;
 	glBindBufferBase(dtype, 0, m->UBOs[0]);
 	glBufferData(dtype, sizeof(sepdParams_t), &m->sepdP, GL_DYNAMIC_DRAW);
