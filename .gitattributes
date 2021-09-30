@@ -1,1 +1,5 @@
 include/glm/** -linguist-detectable
+.gitattributes linguist-documentation
+.gitignore linguist-documentation
+*.md linguist-documentation
+makefile linguist-documentation
