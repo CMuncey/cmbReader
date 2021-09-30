@@ -5,11 +5,13 @@
 #include <math.h>
 
 #include <signal.h>
+#include <chrono>
 
 /* My stuff */
 #include "cmbShader.hpp"
 #include "camera.hpp"
 #include "cmb.h"
+#include "glm/fwd.hpp"
 #include "sklmChunk.h"
 #include "cmbModel.hpp"
 
@@ -203,7 +205,11 @@ int main(int argc, char** argv)
 
 	/* Make the model, don't need the cmb after */
 	readCmb(&cmb, argv[1]);
+	chrono::high_resolution_clock::time_point timeA = chrono::high_resolution_clock::now();
 	makeCmbModel(&model, &cmb);
+	chrono::high_resolution_clock::time_point timeB = chrono::high_resolution_clock::now();
+	chrono::duration<double> timespan = chrono::duration_cast<chrono::duration<double>>(timeB - timeA);
+	printf("Making the model took %lf seconds\n", timespan.count());
 	delCmb(cmb);
 
 	/* Make the initial projection matrix */

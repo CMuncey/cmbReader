@@ -35,6 +35,11 @@ int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 	m->nMeshes = c->sklmC->mshsC->nMeshes;
 	m->meshes = (cmbMesh_t*)malloc(sizeof(cmbMesh_t) * m->nMeshes);
 
+	/* Make a shader for every material in the cmb */
+	m->shaders.resize(c->matsC->nMats);
+	for(i = 0; i < c->matsC->nMats; ++i)
+		m->shaders[i] = cmbShader_t(c, i);
+
 	/* Make the bone matrices */
 	m->bones = makeBones(c);
 
@@ -171,7 +176,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 	/* This has potential for repeats, find a way to do it per material */
 	/* Keep them in model, but normal array won't work */
 	/* Try double array? */
-	m->shader = cmbShader_t(c, cmbMesh->matsInd);
+	m->shader = &(model->shaders[cmbMesh->matsInd]);
 
 	/* Initialise the SEPD parameters */
 	m->sepdP.posScale = m->sepdP.colorScale = m->sepdP.tex0Scale = 1.0f;
@@ -456,14 +461,14 @@ void drawCmbMesh(cmbMesh_t* m)
 	float bR, bB, bG, bA;
 	GLenum dtype;
 
-	m->shader.use();
+	m->shader->use();
 	glBindVertexArray(m->VAO);
 
 	/* Update transform matrices */
-	m->shader.set4mf("proj", *(m->rendP.projMat));
-	m->shader.set4mf("view", *(m->rendP.viewMat));
-	m->shader.set4mf("model", *(m->rendP.modelMat));
-	m->shader.set3mf("norm", *(m->rendP.normMat));
+	m->shader->set4mf("proj", *(m->rendP.projMat));
+	m->shader->set4mf("view", *(m->rendP.viewMat));
+	m->shader->set4mf("model", *(m->rendP.modelMat));
+	m->shader->set3mf("norm", *(m->rendP.normMat));
 
 	/* Update uniform buffers */
 	/* 340 bytes per mesh per frame */
@@ -504,13 +509,13 @@ void drawCmbMesh(cmbMesh_t* m)
 	/* Load the textures */
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, m->TEXs[0]);
-	m->shader.set1i("tex0", 0);
+	m->shader->set1i("tex0", 0);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, m->TEXs[1]);
-	m->shader.set1i("tex1", 1);
+	m->shader->set1i("tex1", 1);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, m->TEXs[2]);
-	m->shader.set1i("tex2", 2);
+	m->shader->set1i("tex2", 2);
 
 	/* Draw the mesh */
 	glDrawElements(GL_TRIANGLES, m->nInd, GL_UNSIGNED_INT, 0);
@@ -528,5 +533,4 @@ void delCmbMesh(cmbMesh_t* m)
 	glDeleteBuffers(1, &(m->EBO));
 	glDeleteBuffers(2, m->UBOs);
 	glDeleteTextures(3, m->TEXs);
-	m->shader.del();
 }

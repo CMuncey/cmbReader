@@ -1,6 +1,7 @@
 #ifndef CMBMODEL_H
 #define CMBMODEL_H
 
+#include <vector>
 #include "glm/glm.hpp"
 
 #include "cmb.h"
@@ -56,7 +57,7 @@ struct cmbMesh_t
 	unsigned int    nInd, VAO, VBOs[8];
 	unsigned int EBO, UBOs[2], TEXs[3];
 
-	cmbShader_t   shader;
+	cmbShader_t*  shader;
 	renderParams_t rendP;
 	sepdParams_t   sepdP;
 	matParams_t     matP;
@@ -72,6 +73,9 @@ struct cmbModel_t
 	glm::mat4  viewMat;
 	glm::mat4 modelMat;
 	glm::mat3  normMat;
+
+	/* Really annoying that an array doesn't work */
+	vector<cmbShader_t> shaders;
 
 	/* Debug */
 	int         meshNum;
