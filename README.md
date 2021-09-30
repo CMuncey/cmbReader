@@ -3,12 +3,10 @@
 A very unfinished cmb (and other file formats) reader for OoT3D
 
 ## Requirements:
----
 
 * OpenGL verison 4.6
 
 ## Compilation:
----
 
 Requires glad, glfw, and glm (included).
 
@@ -19,7 +17,6 @@ I've gotten it to work on Windows once, but I don't remember how.
 To my knowledge, MacOS does not support OpenGL
 
 ## Usage:
----
 
 `./ViewCMB <file.cmb>`
 
