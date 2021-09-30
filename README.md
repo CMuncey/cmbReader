@@ -2,6 +2,15 @@
 
 A very unfinished cmb (and other file formats) reader for OoT3D
 
+There are probably better tools out there to view cmb files, but I wanted a fun project to help learn openGL some more, so I made this.
+A lot of stuff is still unimplemented, and it's not as good as something like noclip.website, but it's way faster.. not that that's really important.
+
+## TODO
+
+* Bones
+* Make transparency work
+* Load an entire scene instead of individual models
+
 ## Requirements:
 
 * OpenGL verison 4.6
