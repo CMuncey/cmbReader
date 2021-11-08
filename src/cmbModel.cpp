@@ -15,6 +15,28 @@ using namespace std;
 /* materials and sepd chunks, so the data from each of those */
 /* can be read once and re-used in each mesh */
 
+/* TODO */
+/* Read all SEPD stuff in model, then reference in meshes */
+/* Read all textures in model */
+/* Pretty much everything can be per model */
+/* Render params still need to be per mesh */
+
+/* 
+	Model:
+		Shaders
+		SEPDs
+			position data
+			normal data
+			color data
+			tex0, 1, 2 data
+			bone index data
+			bone scale data
+			PRMS
+				??? bons stuff
+		Textures
+			
+*/
+
 int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 {
 	uint32_t i;
@@ -31,12 +53,13 @@ int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 		return(1);
 	}
 
+	/* Get the number of meshes */
 	m->meshNum = -1;
 	m->nMeshes = c->sklmC->mshsC->nMeshes;
 	m->meshes = (cmbMesh_t*)malloc(sizeof(cmbMesh_t) * m->nMeshes);
 
 	/* Make a shader for every material in the cmb */
-	m->shaders.resize(c->matsC->nMats);
+	m->shaders = (cmbShader_t*)malloc(sizeof(cmbShader_t) * c->matsC->nMats);
 	for(i = 0; i < c->matsC->nMats; ++i)
 		m->shaders[i] = cmbShader_t(c, i);
 
@@ -128,6 +151,7 @@ void delCmbModel(cmbModel_t* m)
 
 	for(i = 0; i < m->nMeshes; ++i)
 		delCmbMesh(&(m->meshes[i]));
+	free(m->shaders);
 	free(m->meshes);
 	free(m->bones);
 }
@@ -230,6 +254,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 		{
 			/* Somehow the indices work for this, I guess OpenGL */
 			/* just clamps the index if it's out of bounds? */
+			/* Just 3 normals, but possibly way more indices */
 			size = getDTSize((picaDataType)dtype) * 3;
 			tmpPtr = (uint8_t*)(sepdC->normals.constant);
 		}
@@ -432,21 +457,6 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 		m->matP.texInfo[i] = texInfo;
 	}
 	m->matP.depth = mat->depthOffset;
-
-/* I don't remember what this was for, I think temple of time */
-//if(meshNum == 15)
-//{
-//printf("Tex0Scale: %8.7f\n", m->sepdP.tex0Scale);
-//printf("Tex1Scale: %8.7f\n", m->sepdP.tex1Scale);
-//printf("Tex2Scale: %8.7f\n", m->sepdP.tex2Scale);
-//printf("Const color[0]: %8.7f, %8.7f, %8.7f, %8.7f\n", m->matP.constCol[0].x, m->matP.constCol[0].y, m->matP.constCol[0].z, m->matP.constCol[0].w);
-//printf("Const color[4]: %8.7f, %8.7f, %8.7f, %8.7f\n", m->matP.constCol[4].x, m->matP.constCol[4].y, m->matP.constCol[4].z, m->matP.constCol[4].w);
-//printf("color scale: %8.7f\n", m->sepdP.colorScale);
-//printf("has vertex color: %u\n", m->sepdP.hasVColor);
-//printf("depth func: 0x%04x\n", m->rendP.depthFunc);
-//printf("blending on: %d\n", m->rendP.blendingOn);
-//printf("depth: %8.7f\n", m->matP.depth);
-//}
 
 	/* Unbind stuff */
 	glBindVertexArray(0);

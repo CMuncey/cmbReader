@@ -89,7 +89,7 @@ void key_callback(GLFWwindow* w, int key, int scancode, int action, int mods)
 		if(model.meshNum > -1)
 			model.meshNum--;
 	if(key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
-		if(model.meshNum < model.nMeshes-1)
+		if(model.meshNum < model.nMeshes - 1)
 			model.meshNum++;
 }
 

@@ -58,14 +58,14 @@ struct cmbMesh_t
 	unsigned int EBO, UBOs[2], TEXs[3];
 
 	cmbShader_t*  shader;
+	sepdParams_t  sepdP;
+	matParams_t    matP;
 	renderParams_t rendP;
-	sepdParams_t   sepdP;
-	matParams_t     matP;
 };
 
 struct cmbModel_t
 {
-	uint32_t nMeshes, nBones;
+	int32_t  nMeshes, nBones;
 	cmbMesh_t*        meshes;
 	glm::mat4*         bones;
 
@@ -74,8 +74,9 @@ struct cmbModel_t
 	glm::mat4 modelMat;
 	glm::mat3  normMat;
 
-	/* Really annoying that an array doesn't work */
-	vector<cmbShader_t> shaders;
+	cmbShader_t* shaders;
+	sepdParams_t* sepdPs;
+	matParams_t* matPs;
 
 	/* Debug */
 	int         meshNum;

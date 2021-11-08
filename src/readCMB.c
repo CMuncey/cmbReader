@@ -38,7 +38,10 @@ int main(int argc, char** argv)
 		return(1);
 	}
 
-	printCmb(cmb);
+	if(cmb.texC->nTex > 16)
+		printf("%s: %d\n", argv[1], cmb.texC->nTex);
+
+//	printCmb(cmb);
 //	printf("\n");
 //	getTexEnvInfo(&cmb);
 //	printf("\n");
