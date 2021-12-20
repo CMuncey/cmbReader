@@ -8,7 +8,7 @@
 
 /* My stuff */
 #include "cmbShader.hpp"
-#include "camera.h"
+#include "camera.hpp"
 #include "cmb.h"
 #include "sklmChunk.h"
 #include "cmbModel.hpp"
