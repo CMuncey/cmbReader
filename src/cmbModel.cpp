@@ -15,16 +15,18 @@ using namespace std;
 /* materials and sepd chunks, so the data from each of those */
 /* can be read once and re-used in each mesh */
 
-/* TODO */
-/* Read all SEPD stuff in model, then reference in meshes */
-/* Read all textures in model */
-/* Pretty much everything can be per model */
-/* Render params still need to be per mesh */
+/* Also need to speed up cmb reading by only reading the useful stuff */
+/* That will need to be afterwards though so I know what's useful */
 
-/* 
+/* TODO */
+/* Read all textures in model */
+/* Render params still need to be per mesh? */
+/* Actually I think they're per material, so it can probably go with the textures/mats */
+
+/*
 	Model:
-		Shaders
-		SEPDs
+		All Shaders
+		All SEPDs:
 			position data
 			normal data
 			color data
@@ -32,15 +34,21 @@ using namespace std;
 			bone index data
 			bone scale data
 			PRMS
-				??? bons stuff
-		Textures
-			
+				??? bone stuff
+		All Textures
+
+	Mesh:
+		Ref to shader
+		Ref to SEPD + params
+		Ref to MAT + params
+		Render parameters
 */
 
 int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 {
 	uint32_t i;
 
+	/* Make sure the model has somewhere to go */
 	if(m == NULL)
 	{
 		fprintf(stderr, "Error: Loading unallocated model\n");
@@ -59,17 +67,203 @@ int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 	m->meshes = (cmbMesh_t*)malloc(sizeof(cmbMesh_t) * m->nMeshes);
 
 	/* Make a shader for every material in the cmb */
-	m->shaders = (cmbShader_t*)malloc(sizeof(cmbShader_t) * c->matsC->nMats);
-	for(i = 0; i < c->matsC->nMats; ++i)
+	m->nShaders = c->matsC->nMats;
+	m->shaders = (cmbShader_t*)malloc(sizeof(cmbShader_t) * m->nShaders);
+	for(i = 0; i < m->nShaders; ++i)
 		m->shaders[i] = cmbShader_t(c, i);
 
-	/* Make the bone matrices */
-	m->bones = makeBones(c);
+	/* Copy over all of the SEPD stuff from cmb */
+	m->nSEPDs = c->sklmC->shpC->nSEPDs;
+	m->sepds = (modelSEPD_t*)malloc(sizeof(modelSEPD_t) * m->nSEPDs);
+	for(i = 0; i < m->nSEPDs; ++i)
+		readSEPD(&(m->sepds[i]), i, c);
+
+	/* Make the bone matrices (unused atm) */
+	//m->bones = makeBones(c);
 
 	for(i = 0; i < m->nMeshes; ++i)
 		makeCmbMesh(&(m->meshes[i]), i, c, m);
 
 	return(0);
+}
+
+void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
+{
+	uint32_t i, j, k, size;
+	sepdChunk_t* sepdC;
+	prmChunk_t* prmC;
+	uint8_t* tmpPtr;
+	uint32_t* inds;
+	GLenum dtype;
+	
+	sepdC = &(c->sklmC->shpC->sepdC[ind]);
+
+	/* Set up default values for the sepd parameters */
+	s->prms.posScale = s->prms.colorScale = s->prms.tex0Scale = 1.0f;
+	s->prms.tex1Scale = s->prms.tex2Scale = s->prms.boneWScale = 1.0f;
+	s->prms.boneDim = s->prms.hasVColor = 0;
+
+	/* Make the various buffers */
+	glGenVertexArrays(1, &(s->VAO));
+	glGenBuffers(8, s->VBOs);
+	glGenBuffers(1, &(s->EBO));
+	glGenBuffers(2, s->UBOs);
+	glGenTextures(3, s->TEXs);
+
+	/* Bind the meshes VAO to load stuff to it */
+	glBindVertexArray(s->VAO);
+
+	/* Get the position data, this should always be here */
+	if(sepdC->flags1 & SEPD_HAS_POSITIONS)
+	{
+		/* Position data type should always be float */
+		size = c->vatrC->positions.size - sepdC->positions.offset;
+		tmpPtr = c->vatrD->positions + sepdC->positions.offset;
+
+		glBindBuffer(GL_ARRAY_BUFFER, s->VBOs[0]);
+		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		glEnableVertexAttribArray(0);
+	}
+
+	/* Get the normal data if there is any */
+	if(sepdC->flags1 & SEPD_HAS_NORMALS)
+	{
+		dtype = (GLenum)sepdC->normals.datType;
+		s->prms.posScale = sepdC->normals.scale;
+
+		/* Mode 0 = read array */
+		/* Mode 1 = constant value */
+		if(sepdC->normals.mode == 0)
+		{
+			size = c->vatrC->normals.size - sepdC->normals.offset;
+			tmpPtr = c->vatrD->normals + sepdC->normals.offset;
+		}
+		else
+		{
+			/* Somehow the indices work for this, I guess OpenGL */
+			/* just clamps the index if it's out of bounds? */
+			/* Just 3 normals, but possibly way more indices */
+			size = getDTSize((picaDataType)dtype) * 3;
+			tmpPtr = (uint8_t*)(sepdC->normals.constant);
+		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, s->VBOs[1]);
+		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
+		glVertexAttribPointer(1, 3, dtype, GL_TRUE, 0, (void*)0);
+		glEnableVertexAttribArray(1);
+	}
+
+	/* Get the color data */
+	if(sepdC->flags1 & SEPD_HAS_COLORS)
+	{
+		dtype = (GLenum)sepdC->vertColors.datType;
+		s->prms.colorScale = sepdC->vertColors.scale;
+		s->prms.hasVColor = 1;
+
+		if(sepdC->vertColors.mode == 0)
+		{
+			size = c->vatrC->colors.size - sepdC->vertColors.offset;
+			tmpPtr = c->vatrD->colors + sepdC->vertColors.offset;
+		}
+		else
+		{
+			size = getDTSize((picaDataType)dtype) * 4;
+			tmpPtr = (uint8_t*)(sepdC->vertColors.constant);
+		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, s->VBOs[2]);
+		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
+		glVertexAttribPointer(2, 4, dtype, GL_FALSE, 0, (void*)0);
+		glEnableVertexAttribArray(2);
+	}
+
+	/* Get texture 0 coordinate data if there is any */
+	if(sepdC->flags1 & SEPD_HAS_UV0)
+	{
+		dtype = (GLenum)sepdC->tex0Coords.datType;
+		size = c->vatrC->tex0Coords.size - sepdC->tex0Coords.offset;
+		tmpPtr = c->vatrD->tex0Coords + sepdC->tex0Coords.offset;
+		s->prms.tex0Scale = sepdC->tex0Coords.scale;
+		s->prms.tex1Scale = sepdC->tex0Coords.scale;
+		s->prms.tex2Scale = sepdC->tex0Coords.scale;
+
+		glBindBuffer(GL_ARRAY_BUFFER, s->VBOs[3]);
+		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
+		glVertexAttribPointer(3, 2, dtype, GL_FALSE, 0, (void*)0);
+		glEnableVertexAttribArray(3);
+	}
+
+	/* Get the texture 1 data */
+	/* If there is none, use tex0 stuff */
+	if(sepdC->flags1 & SEPD_HAS_UV1)
+	{
+		dtype = (GLenum)sepdC->tex1Coords.datType;
+		size = c->vatrC->tex1Coords.size - sepdC->tex1Coords.offset;
+		tmpPtr = c->vatrD->tex1Coords + sepdC->tex1Coords.offset;
+		s->prms.tex1Scale = sepdC->tex1Coords.scale;
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, s->VBOs[4]);
+	glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
+	glVertexAttribPointer(4, 2, dtype, GL_FALSE, 0, (void*)0);
+	glEnableVertexAttribArray(4);
+
+	/* Get the texture 2 data */
+	/* If there is none, use tex0 stuff */
+	/* TODO this will use tex1 stuff if there is a tex1 */
+	/* not sure if that's fine or not */
+	if(sepdC->flags1 & SEPD_HAS_UV2)
+	{
+		dtype = (GLenum)sepdC->tex2Coords.datType;
+		size = c->vatrC->tex2Coords.size - sepdC->tex2Coords.offset;
+		tmpPtr = c->vatrD->tex2Coords + sepdC->tex2Coords.offset;
+		s->prms.tex2Scale = sepdC->tex2Coords.scale;
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, s->VBOs[5]);
+	glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
+	glVertexAttribPointer(5, 2, dtype, GL_FALSE, 0, (void*)0);
+	glEnableVertexAttribArray(5);
+
+	/* TODO Get the bone index data */
+	//if(sepdC->flags1 & SEPD_HAS_INDICES)
+
+	/* TODO Get the bone weight data */
+	//if(sepdC->flags1 & SEPD_HAS_WEIGHTS)
+
+	/* Find the total number of indices, allocate inds */
+	/* This will almost definitely need to change for bones */
+	for(i = s->nInd = 0; i < sepdC->nPRMS; ++i)
+		s->nInd += sepdC->prmsC[i].prmC->nVertInd;
+	inds = (uint32_t*)malloc(sizeof(uint32_t) * s->nInd);
+
+	/* Convert the indices to uint32_t */
+	/* Can probably get away with not doing this, just save type */
+	/* and give that to drawElements() later */
+	for(i = j = 0; i < sepdC->nPRMS; ++i)
+	{
+		prmC = sepdC->prmsC[i].prmC;
+
+		if(prmC->datType == unsigned8Bit)
+			for(k = 0; k < prmC->nVertInd; ++k, ++j)
+				inds[j] = (c->vIndDat + (prmC->firstInd))[k];
+		else if(prmC->datType == unsigned16Bit)
+			for(k = 0; k < prmC->nVertInd; ++k, ++j)
+				inds[j] = ((uint16_t*)(c->vIndDat + (prmC->firstInd << 1)))[k];
+		else
+			for(k = 0; k < prmC->nVertInd; ++k, ++j)
+				inds[j] = ((uint32_t*)(c->vIndDat + (prmC->firstInd << 2)))[k];
+	}
+
+	size = sizeof(uint32_t) * s->nInd;
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s->EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, inds, GL_STATIC_DRAW);
+	free(inds);
+
+	/* Unbind stuff */
+	glBindVertexArray(0);
+	glActiveTexture(0);
 }
 
 glm::mat4* makeBones(const cmb_t* c)
@@ -179,34 +373,20 @@ uint8_t getDTSize(picaDataType p)
 void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 {
 	unsigned int i, j, k, w, h, size;
-	const float* bcolor;
 	uint32_t texInfo;
-	uint32_t* inds;
 	uint8_t* tmpPtr;
 	GLenum dtype;
 	mesh_t* cmbMesh;
 	sepdChunk_t* sepdC;
-	prmChunk_t* prmC;
 	material_t* mat;
-	matTex_t* mTex;
-	texture_t* tex;
 	rgba_t col;
 
 	cmbMesh = &(c->sklmC->mshsC->meshes[meshNum]);
 	sepdC = &(c->sklmC->shpC->sepdC[cmbMesh->sepdInd]);
 	mat = &(c->matsC->mats[cmbMesh->matsInd]);
 
-	/* Compile the shader for the mesh */
-	/* This has potential for repeats, find a way to do it per material */
-	/* Keep them in model, but normal array won't work */
-	/* Try double array? */
+	/* Link the shader */
 	m->shader = &(model->shaders[cmbMesh->matsInd]);
-
-	/* Initialise the SEPD parameters */
-	m->sepdP.posScale = m->sepdP.colorScale = m->sepdP.tex0Scale = 1.0f;
-	m->sepdP.tex1Scale = m->sepdP.tex2Scale = m->sepdP.boneWScale = 1.0f;
-	m->sepdP.boneDim = 0;
-	m->sepdP.hasVColor = 0;
 
 	/* Link the various matrices */
 	m->rendP.projMat = &(model->projMat);
@@ -214,163 +394,15 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 	m->rendP.modelMat = &(model->modelMat);
 	m->rendP.normMat = &(model->normMat);
 
-	/* Make the various buffers */
-	glGenVertexArrays(1, &(m->VAO));
-	glGenBuffers(8, m->VBOs);
-	glGenBuffers(1, &(m->EBO));
-	glGenBuffers(2, m->UBOs);
-	glGenTextures(3, m->TEXs);
+	m->sepd = &(model->sepds[cmbMesh->sepdInd]);
 
-	/* Bind the meshes VAO to load stuff to it */
-	glBindVertexArray(m->VAO);
+	matTex_t* mTex;
+	texture_t* tex;
+	const float* bcolor;
 
-	/* Get the position data, this should always be here */
-	if(sepdC->flags1 & SEPD_HAS_POSITIONS)
-	{
-		/* Position data type should always be float */
-		size = c->vatrC->positions.size - sepdC->positions.offset;
-		tmpPtr = c->vatrD->positions + sepdC->positions.offset;
-
-		glBindBuffer(GL_ARRAY_BUFFER, m->VBOs[0]);
-		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-		glEnableVertexAttribArray(0);
-	}
-
-	/* Get the normal data if there is any */
-	if(sepdC->flags1 & SEPD_HAS_NORMALS)
-	{
-		dtype = (GLenum)sepdC->normals.datType;
-		m->sepdP.posScale = sepdC->normals.scale;
-
-		/* Mode 0 = read array */
-		/* Mode 1 = constant value */
-		if(sepdC->normals.mode == 0)
-		{
-			size = c->vatrC->normals.size - sepdC->normals.offset;
-			tmpPtr = c->vatrD->normals + sepdC->normals.offset;
-		}
-		else
-		{
-			/* Somehow the indices work for this, I guess OpenGL */
-			/* just clamps the index if it's out of bounds? */
-			/* Just 3 normals, but possibly way more indices */
-			size = getDTSize((picaDataType)dtype) * 3;
-			tmpPtr = (uint8_t*)(sepdC->normals.constant);
-		}
-
-		glBindBuffer(GL_ARRAY_BUFFER, m->VBOs[1]);
-		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
-		glVertexAttribPointer(1, 3, dtype, GL_TRUE, 0, (void*)0);
-		glEnableVertexAttribArray(1);
-	}
-
-	/* Get the color data */
-	if(sepdC->flags1 & SEPD_HAS_COLORS)
-	{
-		dtype = (GLenum)sepdC->vertColors.datType;
-		m->sepdP.colorScale = sepdC->vertColors.scale;
-		m->sepdP.hasVColor = 1;
-
-		if(sepdC->vertColors.mode == 0)
-		{
-			size = c->vatrC->colors.size - sepdC->vertColors.offset;
-			tmpPtr = c->vatrD->colors + sepdC->vertColors.offset;
-		}
-		else
-		{
-			size = getDTSize((picaDataType)dtype) * 4;
-			tmpPtr = (uint8_t*)(sepdC->vertColors.constant);
-		}
-
-		glBindBuffer(GL_ARRAY_BUFFER, m->VBOs[2]);
-		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
-		glVertexAttribPointer(2, 4, dtype, GL_FALSE, 0, (void*)0);
-		glEnableVertexAttribArray(2);
-	}
-
-	/* Get texture 0 coordinate data if there is any */
-	if(sepdC->flags1 & SEPD_HAS_UV0)
-	{
-		dtype = (GLenum)sepdC->tex0Coords.datType;
-		size = c->vatrC->tex0Coords.size - sepdC->tex0Coords.offset;
-		tmpPtr = c->vatrD->tex0Coords + sepdC->tex0Coords.offset;
-		m->sepdP.tex0Scale = sepdC->tex0Coords.scale;
-		m->sepdP.tex1Scale = sepdC->tex0Coords.scale;
-		m->sepdP.tex2Scale = sepdC->tex0Coords.scale;
-
-		glBindBuffer(GL_ARRAY_BUFFER, m->VBOs[3]);
-		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
-		glVertexAttribPointer(3, 2, dtype, GL_FALSE, 0, (void*)0);
-		glEnableVertexAttribArray(3);
-	}
-
-	/* Get the texture 1 data */
-	/* If there is none, use tex0 stuff */
-	if(sepdC->flags1 & SEPD_HAS_UV1)
-	{
-		dtype = (GLenum)sepdC->tex1Coords.datType;
-		size = c->vatrC->tex1Coords.size - sepdC->tex1Coords.offset;
-		tmpPtr = c->vatrD->tex1Coords + sepdC->tex1Coords.offset;
-		m->sepdP.tex1Scale = sepdC->tex1Coords.scale;
-	}
-
-	glBindBuffer(GL_ARRAY_BUFFER, m->VBOs[4]);
-	glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
-	glVertexAttribPointer(4, 2, dtype, GL_FALSE, 0, (void*)0);
-	glEnableVertexAttribArray(4);
-
-	/* Get the texture 2 data */
-	/* If there is none, use tex0 stuff */
-	/* TODO this will use tex1 stuff if there is a tex1 */
-	/* not sure if that's fine or not */
-	if(sepdC->flags1 & SEPD_HAS_UV2)
-	{
-		dtype = (GLenum)sepdC->tex2Coords.datType;
-		size = c->vatrC->tex2Coords.size - sepdC->tex2Coords.offset;
-		tmpPtr = c->vatrD->tex2Coords + sepdC->tex2Coords.offset;
-		m->sepdP.tex2Scale = sepdC->tex2Coords.scale;
-	}
-
-	glBindBuffer(GL_ARRAY_BUFFER, m->VBOs[5]);
-	glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
-	glVertexAttribPointer(5, 2, dtype, GL_FALSE, 0, (void*)0);
-	glEnableVertexAttribArray(5);
-
-	/* TODO Get the bone index data */
-	//if(sepdC.flags1 & SEPD_HAS_INDICES)
-
-	/* TODO Get the bone weight data */
-	//if(sepdC.flags1 & SEPD_HAS_WEIGHTS)
-
-	/* Find the total number of indices, allocate inds */
-	/* This will almost definitely need to change for bones */
-	for(i = m->nInd = 0; i < sepdC->nPRMS; ++i)
-		m->nInd += sepdC->prmsC[i].prmC->nVertInd;
-	inds = (uint32_t*)malloc(sizeof(uint32_t) * m->nInd);
-
-	/* Convert the indices to uint32_t */
-	/* Can probably get away with not doing this, just save type */
-	/* and give that to drawElements() later */
-	for(i = j = 0; i < sepdC->nPRMS; ++i)
-	{
-		prmC = sepdC->prmsC[i].prmC;
-
-		if(prmC->datType == unsigned8Bit)
-			for(k = 0; k < prmC->nVertInd; ++k, ++j)
-				inds[j] = (c->vIndDat + (prmC->firstInd))[k];
-		else if(prmC->datType == unsigned16Bit)
-			for(k = 0; k < prmC->nVertInd; ++k, ++j)
-				inds[j] = ((uint16_t*)(c->vIndDat + (prmC->firstInd << 1)))[k];
-		else
-			for(k = 0; k < prmC->nVertInd; ++k, ++j)
-				inds[j] = ((uint32_t*)(c->vIndDat + (prmC->firstInd << 2)))[k];
-	}
-
-	size = sizeof(uint32_t) * m->nInd;
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m->EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, inds, GL_STATIC_DRAW);
-	free(inds);
+	cmbMesh = &(c->sklmC->mshsC->meshes[meshNum]);
+	sepdC = &(c->sklmC->shpC->sepdC[cmbMesh->sepdInd]);
+	mat = &(c->matsC->mats[cmbMesh->matsInd]);
 
 	/* Load the actual textures */
 	/* TODO Should probably do this in the model instead */
@@ -386,7 +418,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 
 		dtype = GL_TEXTURE_2D;
 		glActiveTexture(GL_TEXTURE0 + i);
-		glBindTexture(dtype, m->TEXs[i]);
+		glBindTexture(dtype, m->sepd->TEXs[i]);
 		glTexParameteri(dtype, GL_TEXTURE_WRAP_S, mTex->WrapS);
 		glTexParameteri(dtype, GL_TEXTURE_WRAP_T, mTex->WrapT);
 
@@ -458,10 +490,6 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 	}
 	m->matP.depth = mat->depthOffset;
 
-	/* Unbind stuff */
-	glBindVertexArray(0);
-	glActiveTexture(0);
-
 	return;
 }
 
@@ -472,7 +500,7 @@ void drawCmbMesh(cmbMesh_t* m)
 	GLenum dtype;
 
 	m->shader->use();
-	glBindVertexArray(m->VAO);
+	glBindVertexArray(m->sepd->VAO);
 
 	/* Update transform matrices */
 	m->shader->set4mf("proj", *(m->rendP.projMat));
@@ -486,9 +514,9 @@ void drawCmbMesh(cmbMesh_t* m)
 	/* that might mess up blending though, needing to draw transparent */
 	/* things before solid things (not that I do that yet) */
 	dtype = GL_UNIFORM_BUFFER;
-	glBindBufferBase(dtype, 0, m->UBOs[0]);
-	glBufferData(dtype, sizeof(sepdParams_t), &m->sepdP, GL_DYNAMIC_DRAW);
-	glBindBufferBase(dtype, 1, m->UBOs[1]);
+	glBindBufferBase(dtype, 0, m->sepd->UBOs[0]);
+	glBufferData(dtype, sizeof(sepdParams_t), &m->sepd->prms, GL_DYNAMIC_DRAW);
+	glBindBufferBase(dtype, 1, m->sepd->UBOs[1]);
 	glBufferData(dtype, sizeof(matParams_t), &m->matP, GL_DYNAMIC_DRAW);
 	glBindBuffer(dtype, 0);
 
@@ -518,17 +546,17 @@ void drawCmbMesh(cmbMesh_t* m)
 
 	/* Load the textures */
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m->TEXs[0]);
+	glBindTexture(GL_TEXTURE_2D, m->sepd->TEXs[0]);
 	m->shader->set1i("tex0", 0);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, m->TEXs[1]);
+	glBindTexture(GL_TEXTURE_2D, m->sepd->TEXs[1]);
 	m->shader->set1i("tex1", 1);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, m->TEXs[2]);
+	glBindTexture(GL_TEXTURE_2D, m->sepd->TEXs[2]);
 	m->shader->set1i("tex2", 2);
 
 	/* Draw the mesh */
-	glDrawElements(GL_TRIANGLES, m->nInd, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, m->sepd->nInd, GL_UNSIGNED_INT, 0);
 
 	/* Clean up */
 	glBindVertexArray(0);
@@ -536,11 +564,8 @@ void drawCmbMesh(cmbMesh_t* m)
 	glDisable(GL_CULL_FACE);
 }
 
+/* TODO probably remove this */
 void delCmbMesh(cmbMesh_t* m)
 {
-	glDeleteVertexArrays(1, &(m->VAO));
-	glDeleteBuffers(8, m->VBOs);
-	glDeleteBuffers(1, &(m->EBO));
-	glDeleteBuffers(2, m->UBOs);
-	glDeleteTextures(3, m->TEXs);
+	return;
 }

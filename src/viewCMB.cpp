@@ -154,8 +154,8 @@ int main(int argc, char** argv)
 	winX = resolutions[(RESOLUTION * 2)];
 	winY = resolutions[(RESOLUTION * 2) + 1];
 	nameLen = strlen(argv[1]);
-	windowName = (char*)malloc(nameLen + 13);
-	sprintf(windowName, "%s | FPS: ", argv[1]);
+	windowName = (char*)malloc(nameLen + 32);
+	strncpy(windowName, argv[1], nameLen);
 
 	signal(SIGSEGV, debug_sigsegv_handler);
 
@@ -219,7 +219,7 @@ int main(int argc, char** argv)
 		cTime = glfwGetTime();
 		if(glfwGetTime() - fTime >= 1.0f)
 		{
-			sprintf(windowName + nameLen + 8, "%d", tmp);
+			sprintf(windowName, "%s | FPS: %5d | FT: %2.3fms", argv[1], tmp, (cTime - pTime) * 1000);
 			glfwSetWindowTitle(window, windowName);
 			tmp = 0, fTime = glfwGetTime();
 		}

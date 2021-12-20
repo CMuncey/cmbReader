@@ -8,7 +8,13 @@
 #include "matsChunk.h"
 #include "cmbConstants.h"
 #include "cmbShader.hpp"
+#include "sklmChunk.h"
 using namespace std;
+
+/* SKLM chunk has a MSHS chunk, which has some number of MESH chunks */
+/* Each MESH chunk has SEPD index and a MATS index */
+/* SEPD chunk contains actual data and things like scale/weights */
+/* MATS chunk contains info about textures, draw settings */
 
 struct sepdParams_t
 {
@@ -52,31 +58,38 @@ struct renderParams_t
 	int cullMode;
 };
 
+struct modelSEPD_t
+{
+	uint32_t VAO, VBOs[8], EBO;
+	uint32_t  UBOs[2], TEXs[3];
+
+	uint32_t nInd;
+
+	sepdParams_t prms;
+};
+
 struct cmbMesh_t
 {
-	unsigned int    nInd, VAO, VBOs[8];
-	unsigned int EBO, UBOs[2], TEXs[3];
-
 	cmbShader_t*  shader;
-	sepdParams_t  sepdP;
-	matParams_t    matP;
+	modelSEPD_t*    sepd;
+	matParams_t     matP;
 	renderParams_t rendP;
 };
 
 struct cmbModel_t
 {
 	int32_t  nMeshes, nBones;
-	cmbMesh_t*        meshes;
-	glm::mat4*         bones;
+	int32_t nShaders, nSEPDs;
+
+	cmbShader_t* shaders;
+	modelSEPD_t*   sepds;
+	cmbMesh_t*    meshes;
+	glm::mat4*     bones;
 
 	glm::mat4  projMat;
 	glm::mat4  viewMat;
 	glm::mat4 modelMat;
 	glm::mat3  normMat;
-
-	cmbShader_t* shaders;
-	sepdParams_t* sepdPs;
-	matParams_t* matPs;
 
 	/* Debug */
 	int         meshNum;
@@ -84,6 +97,7 @@ struct cmbModel_t
 
 /* Model functions */
 int8_t makeCmbModel(cmbModel_t*, const cmb_t*);
+void readSEPD(modelSEPD_t*, int, const cmb_t*);
 glm::mat4* makeBones(const cmb_t*);
 void drawCmbModel(const cmbModel_t*);
 void delCmbModel(cmbModel_t*);
