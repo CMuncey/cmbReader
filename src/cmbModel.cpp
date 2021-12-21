@@ -11,38 +11,8 @@
 #include "cmb.h"
 using namespace std;
 
-/* Lots of room for improvement because many meshes re-use */
-/* materials and sepd chunks, so the data from each of those */
-/* can be read once and re-used in each mesh */
-
-/* Also need to speed up cmb reading by only reading the useful stuff */
-/* That will need to be afterwards though so I know what's useful */
-
-/* TODO */
-/* Read all textures in model */
-/* Render params still need to be per mesh? */
-/* Actually I think they're per material, so it can probably go with the textures/mats */
-
-/*
-	Model:
-		All Shaders
-		All SEPDs:
-			position data
-			normal data
-			color data
-			tex0, 1, 2 data
-			bone index data
-			bone scale data
-			PRMS
-				??? bone stuff
-		All Textures
-
-	Mesh:
-		Ref to shader
-		Ref to SEPD + params
-		Ref to MAT + params
-		Render parameters
-*/
+/* Need to speed up cmb reading by only reading the useful stuff */
+/* That will need to be afterwards though, I know what's useful yet */
 
 int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 {
@@ -92,7 +62,11 @@ int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 	for(i = 0; i < m->nMats; ++i)
 		makeMat(&(m->mats[i]), i, c, m);
 
-	/* Make the bone matrices (unused atm) */
+	for(i = 0; i < m->nTex; ++i)
+		free(m->textures[i]);
+	free(m->textures);
+
+	/* Make the bone matrices (unimplemted) */
 	//m->bones = makeBones(c);
 
 	for(i = 0; i < m->nMeshes; ++i)
@@ -222,7 +196,7 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 	uint8_t* tmpPtr;
 	uint32_t* inds;
 	GLenum dtype;
-	
+
 	sepdC = &(c->sklmC->shpC->sepdC[ind]);
 
 	/* Set up default values for the sepd parameters */
@@ -466,15 +440,14 @@ void drawCmbModel(const cmbModel_t* m)
 
 void delCmbModel(cmbModel_t* m)
 {
-	unsigned int i;
+	/* Textures were deleted right away */
+	/* Meshes don't have anything allocated in them */
 
-	/* Shouldn't need to check these, they should exist */
-	for(i = 0; i < m->nTex; ++i)
-		free(m->textures[i]);
-	free(m->textures);
 	free(m->shaders);
-	free(m->meshes);
+	free(m->mats);
+	free(m->sepds);
 	free(m->bones);
+	free(m->meshes);
 }
 
 uint8_t getDTSize(picaDataType p)
@@ -496,11 +469,11 @@ uint8_t getDTSize(picaDataType p)
 	}
 }
 
-/* I probably need to redo this to account for bones, not sure */
 void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 {
 	mesh_t* cmbMesh;
 
+	/* Need to know which shader/sepd/mat to use */
 	cmbMesh = &(c->sklmC->mshsC->meshes[meshNum]);
 
 	/* Link the shader */
