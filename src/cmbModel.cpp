@@ -55,6 +55,7 @@ int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 		return(1);
 	}
 
+	/* Kinda pointless, no check to make sure it's actually valid */
 	if(c == NULL)
 	{
 		fprintf(stderr, "Error: Loading model with unallocated CMB\n");
@@ -78,6 +79,19 @@ int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 	for(i = 0; i < m->nSEPDs; ++i)
 		readSEPD(&(m->sepds[i]), i, c);
 
+	/* Copy all of the textures into GPU memory */
+	/* Shouldn't cause issues since textures are pretty small */
+	m->nTex = c->texC->nTex;
+	m->textures = (uint8_t**)malloc(sizeof(uint8_t*) * m->nTex);
+	for(i = 0; i < m->nTex; ++i)
+		m->textures[i] = makeTexture(i, c);
+
+	/* Make render/material parameters for all of the mats */
+	m->nMats = c->matsC->nMats;
+	m->mats = (modelMAT_t*)malloc(sizeof(modelMAT_t) * m->nMats);
+	for(i = 0; i < m->nMats; ++i)
+		makeMat(&(m->mats[i]), i, c, m);
+
 	/* Make the bone matrices (unused atm) */
 	//m->bones = makeBones(c);
 
@@ -85,6 +99,119 @@ int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 		makeCmbMesh(&(m->meshes[i]), i, c, m);
 
 	return(0);
+}
+
+uint8_t* makeTexture(int ind, const cmb_t* c)
+{
+	uint8_t* t;
+	texture_t* tex;
+	uint32_t w, h;
+	GLenum dtype;
+
+	/* Read the texture into normal memory */
+	/* We'll copy it into GPU memory when making materials */
+	tex = &(c->texC->tex[ind]);
+	w = tex->width, h = tex->height;
+	t = (uint8_t*)malloc(w * h * 4);
+	decodeImg(c->texDat + tex->offset, t, tex);
+	return(t);
+}
+
+void makeMat(modelMAT_t* mm, int ind, const cmb_t* c, const cmbModel_t* m)
+{
+	uint32_t i, w, h;
+	uint32_t texInfo;
+	material_t* mat;
+	matTex_t* mTex;
+	texture_t* tex;
+	GLenum dtype;
+	rgba_t col;
+	const float* bcolor;
+
+	/* Get the material from the cmb */
+	mat = &(c->matsC->mats[ind]);
+
+	/* Create space for the textures on the GPU */
+	glGenTextures(3, mm->TEXs);
+
+	/* Load every texture in the material */
+	for(i = 0; i < mat->tMapUsed; ++i)
+	{
+		mTex = &(mat->textures[i]);
+		bcolor = (float*)(&mTex->borderColor);
+		tex = &(c->texC->tex[mTex->texIndex]);
+		w = tex->width, h = tex->height;
+
+		dtype = GL_TEXTURE_2D;
+		glBindTexture(dtype, mm->TEXs[i]);
+		glTexParameteri(dtype, GL_TEXTURE_WRAP_S, mTex->WrapS);
+		glTexParameteri(dtype, GL_TEXTURE_WRAP_T, mTex->WrapT);
+
+		/* Trilinear hacks from noclip, not sure if this really makes it look better */
+		if(mTex->MinFilter == GL_LINEAR_MIPMAP_NEAREST)
+			glTexParameteri(dtype, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		else
+			glTexParameteri(dtype, GL_TEXTURE_MIN_FILTER, mTex->MinFilter);
+
+		glTexParameteri(dtype, GL_TEXTURE_MAG_FILTER, mTex->MagFilter);
+		glTexParameterfv(dtype, GL_TEXTURE_BORDER_COLOR, bcolor);
+
+		/* Param 2 is mipmap levels, might need later */
+		glTexImage2D(dtype, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, m->textures[mTex->texIndex]);
+		glGenerateMipmap(dtype);
+	}
+
+	/* Set the blending info stuff */
+	mm->rP.blendingOn = mat->blendEnabled;
+	if(mat->blendEnabled)
+	{
+		mm->rP.bSrcRGB = mat->blendSrcFactRGB;
+		mm->rP.bDstRGB = mat->blendDstFactRGB;
+		mm->rP.bFuncRGB = mat->blendFuncRGB;
+		mm->rP.bSrcAlp = mat->blendSrcFactAlp;
+		mm->rP.bDstAlp = mat->blendDstFactAlp;
+		mm->rP.bFuncAlp = mat->blendFuncAlp;
+		memcpy(mm->rP.bColor, mat->blendColor, 16);
+	}
+
+	/* Set the depth function, default to GL_LESS */
+	if(mat->depthTestOn)
+		mm->rP.depthFunc = mat->depthTestFunc;
+	else
+		mm->rP.depthFunc = GL_LESS;
+
+	/* Set the face culling stuff */
+	switch(mat->faceCullMode)
+	{
+		case 0:
+			mm->rP.cullMode = GL_FRONT_AND_BACK;
+			break;
+		case 1:
+			mm->rP.cullMode = GL_BACK;
+			break;
+		case 2:
+			mm->rP.cullMode = GL_FRONT;
+			break;
+		case 3:
+		default:
+			mm->rP.cullMode = GL_NONE;
+			break;
+	}
+
+	/* Set the material parameter stuff */
+	for(i = 0; i < 6; ++i)
+	{
+		col = mat->constCol[i];
+		mm->mP.constCol[i] = glm::vec4(col.R, col.G, col.B, col.A) / 255.0f;
+	}
+	for(i = 0; i < 3; ++i)
+	{
+		/* I think this is used for the scrolling textures? */
+		texInfo = ((uint32_t)(mat->tCoords[i].mapMethod) << 16);
+		texInfo |= mat->tCoords[i].CoordIndex;
+		mm->mP.texInfo[i] = texInfo;
+	}
+	mm->mP.depth = mat->depthOffset;
 }
 
 void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
@@ -108,7 +235,6 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 	glGenBuffers(8, s->VBOs);
 	glGenBuffers(1, &(s->EBO));
 	glGenBuffers(2, s->UBOs);
-	glGenTextures(3, s->TEXs);
 
 	/* Bind the meshes VAO to load stuff to it */
 	glBindVertexArray(s->VAO);
@@ -263,13 +389,12 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 
 	/* Unbind stuff */
 	glBindVertexArray(0);
-	glActiveTexture(0);
 }
 
 glm::mat4* makeBones(const cmb_t* c)
 {
 	float sX, sY, sZ, cX, cY, cZ;
-	float mat[16];
+	float mtx[16];
 	int i, nBones;
 	glm::mat4* bones;
 	glm::vec3 scale;
@@ -288,30 +413,30 @@ glm::mat4* makeBones(const cmb_t* c)
 
 		/* There may be a glm function(s) to do this? */
 		/* Row 1 */
-		mat[0] = scale.x * (cY * cZ);
-		mat[1] = scale.x * (cY * sZ);
-		mat[2] = scale.x * (-sY);
-		mat[3] = 0.0f;
+		mtx[0] = scale.x * (cY * cZ);
+		mtx[1] = scale.x * (cY * sZ);
+		mtx[2] = scale.x * (-sY);
+		mtx[3] = 0.0f;
 
 		/* Row 2 */
-		mat[4] = scale.y * ((sX * sY * cZ) - (cX * sZ));
-		mat[5] = scale.y * ((sX * sZ * sY) + (cX * cZ));
-		mat[6] = scale.y * (sX * cY);
-		mat[7] = 0.0f;
+		mtx[4] = scale.y * ((sX * sY * cZ) - (cX * sZ));
+		mtx[5] = scale.y * ((sX * sZ * sY) + (cX * cZ));
+		mtx[6] = scale.y * (sX * cY);
+		mtx[7] = 0.0f;
 
 		/* Row 3 */
-		mat[8]  = scale.z * ((cX * sY * cZ) + (sX * sZ));
-		mat[9]  = scale.z * ((cX * sY * sZ) - (sX * cZ));
-		mat[10] = scale.z * (cX * cY);
-		mat[11] = 0.0f;
+		mtx[8]  = scale.z * ((cX * sY * cZ) + (sX * sZ));
+		mtx[9]  = scale.z * ((cX * sY * sZ) - (sX * cZ));
+		mtx[10] = scale.z * (cX * cY);
+		mtx[11] = 0.0f;
 
 		/* Row 4 */
-		mat[12] = bone->trans[0];
-		mat[13] = bone->trans[1];
-		mat[14] = bone->trans[2];
-		mat[15] = 1.0f;
+		mtx[12] = bone->trans[0];
+		mtx[13] = bone->trans[1];
+		mtx[14] = bone->trans[2];
+		mtx[15] = 1.0f;
 
-		bones[i] = glm::make_mat4(mat);
+		bones[i] = glm::make_mat4(mtx);
 
 		/* Multiply parent by child, in that order */
 		/* Matrix multiplication isn't commutative */
@@ -343,8 +468,10 @@ void delCmbModel(cmbModel_t* m)
 {
 	unsigned int i;
 
-	for(i = 0; i < m->nMeshes; ++i)
-		delCmbMesh(&(m->meshes[i]));
+	/* Shouldn't need to check these, they should exist */
+	for(i = 0; i < m->nTex; ++i)
+		free(m->textures[i]);
+	free(m->textures);
 	free(m->shaders);
 	free(m->meshes);
 	free(m->bones);
@@ -372,123 +499,24 @@ uint8_t getDTSize(picaDataType p)
 /* I probably need to redo this to account for bones, not sure */
 void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 {
-	unsigned int i, j, k, w, h, size;
-	uint32_t texInfo;
-	uint8_t* tmpPtr;
-	GLenum dtype;
 	mesh_t* cmbMesh;
-	sepdChunk_t* sepdC;
-	material_t* mat;
-	rgba_t col;
 
 	cmbMesh = &(c->sklmC->mshsC->meshes[meshNum]);
-	sepdC = &(c->sklmC->shpC->sepdC[cmbMesh->sepdInd]);
-	mat = &(c->matsC->mats[cmbMesh->matsInd]);
 
 	/* Link the shader */
 	m->shader = &(model->shaders[cmbMesh->matsInd]);
 
 	/* Link the various matrices */
-	m->rendP.projMat = &(model->projMat);
-	m->rendP.viewMat = &(model->viewMat);
-	m->rendP.modelMat = &(model->modelMat);
-	m->rendP.normMat = &(model->normMat);
+	m->projMat = &(model->projMat);
+	m->viewMat = &(model->viewMat);
+	m->modelMat = &(model->modelMat);
+	m->normMat = &(model->normMat);
 
+	/* Link the SEPD for the mesh */
 	m->sepd = &(model->sepds[cmbMesh->sepdInd]);
 
-	matTex_t* mTex;
-	texture_t* tex;
-	const float* bcolor;
-
-	cmbMesh = &(c->sklmC->mshsC->meshes[meshNum]);
-	sepdC = &(c->sklmC->shpC->sepdC[cmbMesh->sepdInd]);
-	mat = &(c->matsC->mats[cmbMesh->matsInd]);
-
-	/* Load the actual textures */
-	/* TODO Should probably do this in the model instead */
-	/* since this can use repeats, just like shaders */
-	for(i = 0; i < mat->tMapUsed; ++i)
-	{
-		mTex = &(mat->textures[i]);
-		tex = &(c->texC->tex[mTex->texIndex]);
-		bcolor = (float*)(&mTex->borderColor);
-		w = tex->width, h = tex->height;
-		tmpPtr = (uint8_t*)malloc(w * h * 4);
-		decodeImg(c->texDat + tex->offset, tmpPtr, tex);
-
-		dtype = GL_TEXTURE_2D;
-		glActiveTexture(GL_TEXTURE0 + i);
-		glBindTexture(dtype, m->sepd->TEXs[i]);
-		glTexParameteri(dtype, GL_TEXTURE_WRAP_S, mTex->WrapS);
-		glTexParameteri(dtype, GL_TEXTURE_WRAP_T, mTex->WrapT);
-
-		/* Trilinear hacks from noclip, not sure if this really makes it look better */
-		if(mTex->MinFilter == GL_LINEAR_MIPMAP_NEAREST)
-			glTexParameteri(dtype, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		else
-			glTexParameteri(dtype, GL_TEXTURE_MIN_FILTER, mTex->MinFilter);
-
-		glTexParameteri(dtype, GL_TEXTURE_MAG_FILTER, mTex->MagFilter);
-		glTexParameterfv(dtype, GL_TEXTURE_BORDER_COLOR, bcolor);
-
-		/* Param 2 is mipmap levels, might need later */
-		glTexImage2D(dtype, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, tmpPtr);
-		glGenerateMipmap(dtype);
-		glActiveTexture(0);
-		free(tmpPtr);
-	}
-
-	/* Set the blending info stuff */
-	m->rendP.blendingOn = mat->blendEnabled;
-	if(mat->blendEnabled)
-	{
-		m->rendP.bSrcRGB = mat->blendSrcFactRGB;
-		m->rendP.bDstRGB = mat->blendDstFactRGB;
-		m->rendP.bFuncRGB = mat->blendFuncRGB;
-		m->rendP.bSrcAlp = mat->blendSrcFactAlp;
-		m->rendP.bDstAlp = mat->blendDstFactAlp;
-		m->rendP.bFuncAlp = mat->blendFuncAlp;
-		memcpy(m->rendP.bColor, mat->blendColor, 16);
-	}
-
-	/* Set the depth function, default to GL_LESS */
-	if(mat->depthTestOn)
-		m->rendP.depthFunc = mat->depthTestFunc;
-	else
-		m->rendP.depthFunc = GL_LESS;
-
-	/* Set the face culling stuff */
-	switch(mat->faceCullMode)
-	{
-		case 0:
-			m->rendP.cullMode = GL_FRONT_AND_BACK;
-			break;
-		case 1:
-			m->rendP.cullMode = GL_BACK;
-			break;
-		case 2:
-			m->rendP.cullMode = GL_FRONT;
-			break;
-		case 3:
-		default:
-			m->rendP.cullMode = GL_NONE;
-			break;
-	}
-
-	/* Set the material parameter stuff */
-	for(i = 0; i < 6; ++i)
-	{
-		col = mat->constCol[i];
-		m->matP.constCol[i] = glm::vec4(col.R, col.G, col.B, col.A) / 255.0f;
-	}
-	for(i = 0; i < 3; ++i)
-	{
-		/* I think this is used for the scrolling textures? */
-		texInfo = ((uint32_t)(mat->tCoords[i].mapMethod) << 16);
-		texInfo |= mat->tCoords[i].CoordIndex;
-		m->matP.texInfo[i] = texInfo;
-	}
-	m->matP.depth = mat->depthOffset;
+	/* Link the material for the mesh */
+	m->mat = &(model->mats[cmbMesh->matsInd]);
 
 	return;
 }
@@ -503,10 +531,10 @@ void drawCmbMesh(cmbMesh_t* m)
 	glBindVertexArray(m->sepd->VAO);
 
 	/* Update transform matrices */
-	m->shader->set4mf("proj", *(m->rendP.projMat));
-	m->shader->set4mf("view", *(m->rendP.viewMat));
-	m->shader->set4mf("model", *(m->rendP.modelMat));
-	m->shader->set3mf("norm", *(m->rendP.normMat));
+	m->shader->set4mf("proj", *(m->projMat));
+	m->shader->set4mf("view", *(m->viewMat));
+	m->shader->set4mf("model", *(m->modelMat));
+	m->shader->set3mf("norm", *(m->normMat));
 
 	/* Update uniform buffers */
 	/* 340 bytes per mesh per frame */
@@ -517,42 +545,42 @@ void drawCmbMesh(cmbMesh_t* m)
 	glBindBufferBase(dtype, 0, m->sepd->UBOs[0]);
 	glBufferData(dtype, sizeof(sepdParams_t), &m->sepd->prms, GL_DYNAMIC_DRAW);
 	glBindBufferBase(dtype, 1, m->sepd->UBOs[1]);
-	glBufferData(dtype, sizeof(matParams_t), &m->matP, GL_DYNAMIC_DRAW);
+	glBufferData(dtype, sizeof(matParams_t), &m->mat->mP, GL_DYNAMIC_DRAW);
 	glBindBuffer(dtype, 0);
 
 	/* Handle blending */
-	if(m->rendP.blendingOn)
+	if(m->mat->rP.blendingOn)
 	{
-		sC = m->rendP.bSrcRGB, dC = m->rendP.bDstRGB;
-		sA = m->rendP.bSrcAlp, dA = m->rendP.bDstAlp;
-		bR = m->rendP.bColor[0], bB = m->rendP.bColor[1];
-		bG = m->rendP.bColor[2], bA = m->rendP.bColor[3];
+		sC = m->mat->rP.bSrcRGB, dC = m->mat->rP.bDstRGB;
+		sA = m->mat->rP.bSrcAlp, dA = m->mat->rP.bDstAlp;
+		bR = m->mat->rP.bColor[0], bB = m->mat->rP.bColor[1];
+		bG = m->mat->rP.bColor[2], bA = m->mat->rP.bColor[3];
 
 		glEnable(GL_BLEND);
 		glBlendFuncSeparate(sC, dC, sA, dA);
-		glBlendEquationSeparate(m->rendP.bFuncRGB, m->rendP.bFuncAlp);
+		glBlendEquationSeparate(m->mat->rP.bFuncRGB, m->mat->rP.bFuncAlp);
 		glBlendColor(bR, bB, bG, bA);
 	}
 
 	/* Update the depth function */
-	glDepthFunc(m->rendP.depthFunc);
+	glDepthFunc(m->mat->rP.depthFunc);
 
 	/* Update the culling mode */
-	if(m->rendP.cullMode != GL_NONE)
+	if(m->mat->rP.cullMode != GL_NONE)
 	{
 		glEnable(GL_CULL_FACE);
-		glCullFace(m->rendP.cullMode);
+		glCullFace(m->mat->rP.cullMode);
 	}
 
 	/* Load the textures */
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m->sepd->TEXs[0]);
+	glBindTexture(GL_TEXTURE_2D, m->mat->TEXs[0]);
 	m->shader->set1i("tex0", 0);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, m->sepd->TEXs[1]);
+	glBindTexture(GL_TEXTURE_2D, m->mat->TEXs[1]);
 	m->shader->set1i("tex1", 1);
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, m->sepd->TEXs[2]);
+	glBindTexture(GL_TEXTURE_2D, m->mat->TEXs[2]);
 	m->shader->set1i("tex2", 2);
 
 	/* Draw the mesh */
@@ -562,10 +590,4 @@ void drawCmbMesh(cmbMesh_t* m)
 	glBindVertexArray(0);
 	glDisable(GL_BLEND);
 	glDisable(GL_CULL_FACE);
-}
-
-/* TODO probably remove this */
-void delCmbMesh(cmbMesh_t* m)
-{
-	return;
 }

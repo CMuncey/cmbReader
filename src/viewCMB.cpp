@@ -7,7 +7,7 @@
 #include <signal.h>
 
 /* My stuff */
-#include "cmbShader.hpp"
+#include "cmbShader.hpp" 
 #include "camera.hpp"
 #include "cmb.h"
 #include "glm/fwd.hpp"
@@ -217,12 +217,6 @@ int main(int argc, char** argv)
 	{
 		/* Get frame start time */
 		cTime = glfwGetTime();
-		if(glfwGetTime() - fTime >= 1.0f)
-		{
-			sprintf(windowName, "%s | FPS: %5d | FT: %2.3fms", argv[1], tmp, (cTime - pTime) * 1000);
-			glfwSetWindowTitle(window, windowName);
-			tmp = 0, fTime = glfwGetTime();
-		}
 
 		/* Clear the frame buffer */
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -244,6 +238,15 @@ int main(int argc, char** argv)
 
 		/* Draw the model with both shaders */
 		drawCmbModel(&model);
+
+		/* Update the fps and frame time in window title */
+		/* Do it here so that frame time can be slightly more accurate */
+		if(glfwGetTime() - fTime >= 1.0f)
+		{
+			snprintf(windowName, nameLen + 32, "%s | FPS: %5d | FT: %2.3fms", argv[1], tmp, (glfwGetTime() - cTime) * 1000);
+			glfwSetWindowTitle(window, windowName);
+			tmp = 0, fTime = glfwGetTime();
+		}
 
 		/* Check events, swap buffers */
 		glfwSwapBuffers(window);
