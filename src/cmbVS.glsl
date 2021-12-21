@@ -108,9 +108,11 @@ void main()
 	vout.tex0Coord = vTex0Coord * tex0Scale;
 	vout.tex1Coord = vTex1Coord * tex1Scale;
 	vout.tex2Coord = vTex2Coord * tex2Scale;
-	//vout.tex0Coords = getTexCoords(0);
-	//vout.tex1Coords = getTexCoords(1);
-	//vout.tex2Coords = getTexCoords(2);
+
+	/* This one is more accurate maybe? but idk what all it needs */
+	//vout.tex0Coord = getTexCoords(0);
+	//vout.tex1Coord = getTexCoords(1);
+	//vout.tex2Coord = getTexCoords(2);
 
 	/* Calculate vertex position */
 	vout.norm = normalize(norm * vNorm);

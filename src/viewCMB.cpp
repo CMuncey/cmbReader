@@ -7,9 +7,10 @@
 #include <signal.h>
 
 /* My stuff */
-#include "cmbShader.hpp"
+#include "cmbShader.hpp" 
 #include "camera.hpp"
 #include "cmb.h"
+#include "glm/fwd.hpp"
 #include "sklmChunk.h"
 #include "cmbModel.hpp"
 
@@ -20,8 +21,8 @@
 
 #define SWAP_INTERVAL 1
 #define WINDOW_NAME "Test"
-#define RESOLUTION 4
-#define FULLSCREEN 1
+#define RESOLUTION 1
+#define FULLSCREEN 0
 #define CAM_SPEED 2.5f
 #define SENSITIVITY 0.1f
 #define NEAR_PLANE 0.1f
@@ -88,7 +89,7 @@ void key_callback(GLFWwindow* w, int key, int scancode, int action, int mods)
 		if(model.meshNum > -1)
 			model.meshNum--;
 	if(key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
-		if(model.meshNum < model.nMeshes-1)
+		if(model.meshNum < model.nMeshes - 1)
 			model.meshNum++;
 }
 
@@ -153,8 +154,8 @@ int main(int argc, char** argv)
 	winX = resolutions[(RESOLUTION * 2)];
 	winY = resolutions[(RESOLUTION * 2) + 1];
 	nameLen = strlen(argv[1]);
-	windowName = (char*)malloc(nameLen + 13);
-	sprintf(windowName, "%s | FPS: 0", argv[1]);
+	windowName = (char*)malloc(nameLen + 32);
+	strncpy(windowName, argv[1], nameLen);
 
 	signal(SIGSEGV, debug_sigsegv_handler);
 
@@ -216,12 +217,6 @@ int main(int argc, char** argv)
 	{
 		/* Get frame start time */
 		cTime = glfwGetTime();
-		if(glfwGetTime() - fTime >= 1.0f)
-		{
-			sprintf(windowName + nameLen + 8, "%d", tmp);
-			glfwSetWindowTitle(window, windowName);
-			tmp = 0, fTime = glfwGetTime();
-		}
 
 		/* Clear the frame buffer */
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -244,12 +239,20 @@ int main(int argc, char** argv)
 		/* Draw the model with both shaders */
 		drawCmbModel(&model);
 
+		/* Update the fps and frame time in window title */
+		/* Do it here so that frame time can be slightly more accurate */
+		if(glfwGetTime() - fTime >= 1.0f)
+		{
+			snprintf(windowName, nameLen + 32, "%s | FPS: %5d | FT: %2.3fms", argv[1], tmp, (glfwGetTime() - cTime) * 1000);
+			glfwSetWindowTitle(window, windowName);
+			tmp = 0, fTime = glfwGetTime();
+		}
+
 		/* Check events, swap buffers */
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 		pTime = cTime;
 		++tmp;
-//glfwSetWindowShouldClose(window, 1); //debug
 	}
 
 	/* Clean up */

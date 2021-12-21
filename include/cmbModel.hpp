@@ -1,13 +1,20 @@
 #ifndef CMBMODEL_H
 #define CMBMODEL_H
 
+#include <vector>
 #include "glm/glm.hpp"
 
 #include "cmb.h"
 #include "matsChunk.h"
 #include "cmbConstants.h"
 #include "cmbShader.hpp"
+#include "sklmChunk.h"
 using namespace std;
+
+/* SKLM chunk has a MSHS chunk, which has some number of MESH chunks */
+/* Each MESH chunk has SEPD index and a MATS index */
+/* SEPD chunk contains actual data and things like scale/weights */
+/* MATS chunk contains info about textures, draw settings */
 
 struct sepdParams_t
 {
@@ -31,11 +38,6 @@ struct matParams_t
 
 struct renderParams_t
 {
-	glm::mat4*  projMat;
-	glm::mat4*  viewMat;
-	glm::mat4* modelMat;
-	glm::mat3*  normMat;
-
 	int  blendingOn;
 	int     bSrcRGB;
 	int     bDstRGB;
@@ -49,24 +51,52 @@ struct renderParams_t
 	int  depthFunc;
 
 	int cullMode;
+
+	matParams_t matP;
+};
+
+struct modelSEPD_t
+{
+	uint32_t VAO, VBOs[8];
+	uint32_t EBO, UBOs[2];
+
+	uint32_t nInd;
+
+	sepdParams_t prms;
+};
+
+struct modelMAT_t
+{
+	uint32_t TEXs[3];
+
+	renderParams_t rP;
+	matParams_t    mP;
 };
 
 struct cmbMesh_t
 {
-	unsigned int    nInd, VAO, VBOs[8];
-	unsigned int EBO, UBOs[2], TEXs[3];
+	glm::mat4*  projMat;
+	glm::mat4*  viewMat;
+	glm::mat4* modelMat;
+	glm::mat3*  normMat;
 
-	cmbShader_t   shader;
-	renderParams_t rendP;
-	sepdParams_t   sepdP;
-	matParams_t     matP;
+	cmbShader_t* shader;
+	modelSEPD_t*   sepd;
+	modelMAT_t*     mat;
 };
 
 struct cmbModel_t
 {
-	uint32_t nMeshes, nBones;
-	cmbMesh_t*        meshes;
-	glm::mat4*         bones;
+	int32_t nMeshes, nBones;
+	int32_t    nTex, nSEPDs;
+	int32_t nShaders, nMats;
+
+	cmbShader_t*  shaders;
+	uint8_t**    textures;
+	modelMAT_t*      mats;
+	modelSEPD_t*    sepds;
+	glm::mat4*      bones;
+	cmbMesh_t*     meshes;
 
 	glm::mat4  projMat;
 	glm::mat4  viewMat;
@@ -79,6 +109,9 @@ struct cmbModel_t
 
 /* Model functions */
 int8_t makeCmbModel(cmbModel_t*, const cmb_t*);
+uint8_t* makeTexture(int, const cmb_t*);
+void makeMat(modelMAT_t*, int, const cmb_t*,  const cmbModel_t*);
+void readSEPD(modelSEPD_t*, int, const cmb_t*);
 glm::mat4* makeBones(const cmb_t*);
 void drawCmbModel(const cmbModel_t*);
 void delCmbModel(cmbModel_t*);
@@ -87,6 +120,5 @@ void delCmbModel(cmbModel_t*);
 uint8_t getDTSize(picaDataType p);
 void makeCmbMesh(cmbMesh_t*, int, const cmb_t*, cmbModel_t*);
 void drawCmbMesh(cmbMesh_t*);
-void delCmbMesh(cmbMesh_t*);
 
 #endif
