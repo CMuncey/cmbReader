@@ -24,6 +24,7 @@ int8_t readCmb(cmb_t* c, const char* fn)
 	}
 
 	/* Init everything to null for easy deletion later */
+	/* if something goes wrong when reading it */
 	c->data = NULL;
 	c->cmbC = NULL;
 	c->sklC = NULL;
@@ -92,7 +93,7 @@ int8_t readCmbChunk(cmb_t* c)
 
 	/* Copy and check the magic number */
 	/* Could just memcpy the whole thing, but that will make MM much harder */
-	/* Plus I can add stuff to the structs this way */
+	/* Plus I can add stuff to the structs this way and it doesn't break */
 	memcpy(cmbC->magic, data + offs, sizeof(cmbChunk_t)), offs += 0x04;
 	if(*(int*)cmbC->magic != *(int*)("cmb "))
 	{
@@ -162,7 +163,6 @@ int8_t readSklChunk(cmb_t* c)
 	return(0);
 }
 
-/* TODO convert this to offsets */
 int8_t readMatsChunk(cmb_t* c)
 {
 	int offs, i, j;

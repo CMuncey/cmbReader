@@ -13,6 +13,10 @@ using namespace std;
 
 /* Need to speed up cmb reading by only reading the useful stuff */
 /* That will need to be afterwards though, I know what's useful yet */
+/* PRMS can be an array of Element buffers */
+
+/* Apparently you can do a lot of the reading stuff without binding now? */
+/* look up DSA or something like that at some point, might be faster */
 
 int8_t makeCmbModel(cmbModel_t* m, const cmb_t* c)
 {
@@ -208,15 +212,23 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 	sepdC = &(c->sklmC->shpC->sepdC[ind]);
 
 	/* Set up default values for the sepd parameters */
-	s->prms.posScale = s->prms.colorScale = s->prms.tex0Scale = 1.0f;
-	s->prms.tex1Scale = s->prms.tex2Scale = s->prms.boneWScale = 1.0f;
-	s->prms.boneDim = s->prms.hasVColor = 0;
+	s->params.posScale = s->params.colorScale = s->params.tex0Scale = 1.0f;
+	s->params.tex1Scale = s->params.tex2Scale = s->params.boneWScale = 1.0f;
+	s->params.boneDim = s->params.hasVColor = 0;
+
+	/* Get some of the primitives info */
+	s->nPRMS = sepdC->nPRMS;
+	s->prms = (modelPRMS_t*)malloc(sizeof(modelPRMS_t) * s->nPRMS);
 
 	/* Make the various buffers */
 	glGenVertexArrays(1, &(s->VAO));
 	glGenBuffers(8, s->VBOs);
-	glGenBuffers(1, &(s->EBO));
 	glGenBuffers(2, s->UBOs);
+
+	/* Each primitives gets it's own EBO */
+	/* I guess that's what prms is for anyway, primitives */
+	for(i = 0; i < s->nPRMS; ++i)
+		glGenBuffers(1, &(s->prms[i].EBO));
 
 	/* Bind the mesh VAO to load stuff to it */
 	glBindVertexArray(s->VAO);
@@ -238,7 +250,7 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 	if(sepdC->flags1 & SEPD_HAS_NORMALS)
 	{
 		dtype = (GLenum)sepdC->normals.datType;
-		s->prms.posScale = sepdC->normals.scale;
+		s->params.posScale = sepdC->normals.scale;
 
 		/* Mode 0 = read array */
 		/* Mode 1 = constant value */
@@ -266,8 +278,8 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 	if(sepdC->flags1 & SEPD_HAS_COLORS)
 	{
 		dtype = (GLenum)sepdC->vertColors.datType;
-		s->prms.colorScale = sepdC->vertColors.scale;
-		s->prms.hasVColor = 1;
+		s->params.colorScale = sepdC->vertColors.scale;
+		s->params.hasVColor = 1;
 
 		if(sepdC->vertColors.mode == 0)
 		{
@@ -292,9 +304,9 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 		dtype = (GLenum)sepdC->tex0Coords.datType;
 		size = c->vatrC->tex0Coords.size - sepdC->tex0Coords.offset;
 		tmpPtr = c->vatrD->tex0Coords + sepdC->tex0Coords.offset;
-		s->prms.tex0Scale = sepdC->tex0Coords.scale;
-		s->prms.tex1Scale = sepdC->tex0Coords.scale;
-		s->prms.tex2Scale = sepdC->tex0Coords.scale;
+		s->params.tex0Scale = sepdC->tex0Coords.scale;
+		s->params.tex1Scale = sepdC->tex0Coords.scale;
+		s->params.tex2Scale = sepdC->tex0Coords.scale;
 
 		glBindBuffer(GL_ARRAY_BUFFER, s->VBOs[3]);
 		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
@@ -308,7 +320,7 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 		dtype = (GLenum)sepdC->tex1Coords.datType;
 		size = c->vatrC->tex1Coords.size - sepdC->tex1Coords.offset;
 		tmpPtr = c->vatrD->tex1Coords + sepdC->tex1Coords.offset;
-		s->prms.tex1Scale = sepdC->tex1Coords.scale;
+		s->params.tex1Scale = sepdC->tex1Coords.scale;
 	
 		glBindBuffer(GL_ARRAY_BUFFER, s->VBOs[4]);
 		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
@@ -322,7 +334,7 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 		dtype = (GLenum)sepdC->tex2Coords.datType;
 		size = c->vatrC->tex2Coords.size - sepdC->tex2Coords.offset;
 		tmpPtr = c->vatrD->tex2Coords + sepdC->tex2Coords.offset;
-		s->prms.tex2Scale = sepdC->tex2Coords.scale;
+		s->params.tex2Scale = sepdC->tex2Coords.scale;
 
 		glBindBuffer(GL_ARRAY_BUFFER, s->VBOs[5]);
 		glBufferData(GL_ARRAY_BUFFER, size, tmpPtr, GL_STATIC_DRAW);
@@ -331,40 +343,42 @@ void readSEPD(modelSEPD_t* s, int ind, const cmb_t* c)
 	}
 
 	/* TODO Get the bone index data */
-	//if(sepdC->flags1 & SEPD_HAS_INDICES)
+//	if(sepdC->flags1 & SEPD_HAS_INDICES)
 
 	/* TODO Get the bone weight data */
-	//if(sepdC->flags1 & SEPD_HAS_WEIGHTS)
+//	if(sepdC->flags1 & SEPD_HAS_WEIGHTS)
 
-	/* Find the total number of indices, allocate inds */
-	/* This will almost definitely need to change for bones */
-	for(i = s->nInd = 0; i < sepdC->nPRMS; ++i)
-		s->nInd += sepdC->prmsC[i].prmC->nVertInd;
-	inds = (uint32_t*)malloc(sizeof(uint32_t) * s->nInd);
-
-	/* Convert the indices to uint32_t */
-	/* Can probably get away with not doing this, just save type */
-	/* and give that to drawElements() later */
-	for(i = j = 0; i < sepdC->nPRMS; ++i)
+	for(i = 0; i < s->nPRMS; ++i)
 	{
 		prmC = sepdC->prmsC[i].prmC;
 
-		if(prmC->datType == unsigned8Bit)
-			for(k = 0; k < prmC->nVertInd; ++k, ++j)
-				inds[j] = (c->vIndDat + (prmC->firstInd))[k];
-		else if(prmC->datType == unsigned16Bit)
-			for(k = 0; k < prmC->nVertInd; ++k, ++j)
-				inds[j] = ((uint16_t*)(c->vIndDat + (prmC->firstInd << 1)))[k];
-		else
-			for(k = 0; k < prmC->nVertInd; ++k, ++j)
-				inds[j] = ((uint32_t*)(c->vIndDat + (prmC->firstInd << 2)))[k];
-	}
+		/* Copy over the bone indices stuff */
+	//	s->prms[i].skinMode = sepdC->prmsC[i].skinMode;
+	//	s->prms[i].bIndOffs = sepdC->prmsC[i].bIndOffs;
+	//	s->prms[i].nBones = sepdC->prmsC[i].nBoneInd;
+	//	s->prms[i].bones = (uint16_t*)malloc(sizeof(uint16_t) * s->prms[i].nBones);
+	//	memcpy(s->prms[i].bones, sepdC->prmsC[i].bInds, s->prms[i].nBones * 2);
 
-	/* Fill the EBO with the indices */
-	size = sizeof(uint32_t) * s->nInd;
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s->EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, inds, GL_STATIC_DRAW);
-	free(inds);
+		/* Convert all of the indices to uint32_t because that's easier */
+		s->prms[i].nInds = prmC->nVertInd;
+		inds = (uint32_t*)malloc(sizeof(uint32_t) * s->prms[i].nInds);
+
+		if(prmC->datType == unsigned8Bit)
+			for(j = 0; j < prmC->nVertInd; ++j)
+				inds[j] = (c->vIndDat + (prmC->firstInd))[j];
+		else if(prmC->datType == unsigned16Bit)
+			for(j = 0; j < prmC->nVertInd; ++j)
+				inds[j] = ((uint16_t*)(c->vIndDat + (prmC->firstInd << 1)))[j];
+		else
+			for(j = 0; j < prmC->nVertInd; ++j)
+				inds[j] = ((uint32_t*)(c->vIndDat + (prmC->firstInd << 2)))[j];
+	
+		/* Copy the indices into the EBO */
+		size = sizeof(uint32_t) * s->prms[i].nInds;
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s->prms[i].EBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, inds, GL_STATIC_DRAW);
+		free(inds);
+	}
 
 	/* Unbind stuff */
 	glBindVertexArray(0);
@@ -445,14 +459,22 @@ void drawCmbModel(const cmbModel_t* m)
 
 void delCmbModel(cmbModel_t* m)
 {
-	/* Textures were deleted right away */
-	/* Meshes don't have anything allocated in them */
+	int i, j;
+
+	/* Free all of the bone index stuff from PRMSs */
+	/* Remember to uncomment this when bones get added */
+//	for(i = 0; i < m->nSEPDs; ++i)
+//		for(j = 0; j < m->sepds[i].nPRMS; ++j)
+//			free(m->sepds[i].prms[j].bones);
 
 	free(m->shaders);
 	free(m->mats);
 	free(m->sepds);
 	free(m->bones);
 	free(m->meshes);
+
+	/* Textures were deleted right away */
+	/* Meshes don't have anything allocated in them */
 }
 
 uint8_t getDTSize(picaDataType p)
@@ -501,7 +523,7 @@ void makeCmbMesh(cmbMesh_t* m, int meshNum, const cmb_t* c, cmbModel_t* model)
 
 void drawCmbMesh(cmbMesh_t* m)
 {
-	int sC, dC, sA, dA;
+	int i, sC, dC, sA, dA;
 	float bR, bB, bG, bA;
 	GLenum dtype;
 
@@ -518,7 +540,7 @@ void drawCmbMesh(cmbMesh_t* m)
 	/* 340 bytes per mesh per frame */
 	dtype = GL_UNIFORM_BUFFER;
 	glBindBufferBase(dtype, 0, m->sepd->UBOs[0]);
-	glBufferData(dtype, sizeof(sepdParams_t), &m->sepd->prms, GL_DYNAMIC_DRAW);
+	glBufferData(dtype, sizeof(sepdParams_t), &m->sepd->params, GL_DYNAMIC_DRAW);
 	glBindBufferBase(dtype, 1, m->sepd->UBOs[1]);
 	glBufferData(dtype, sizeof(matParams_t), &m->mat->mP, GL_DYNAMIC_DRAW);
 	glBindBuffer(dtype, 0);
@@ -558,8 +580,12 @@ void drawCmbMesh(cmbMesh_t* m)
 	glBindTexture(GL_TEXTURE_2D, m->mat->TEXs[2]);
 	m->shader->set1i("tex2", 2);
 
-	/* Draw the mesh */
-	glDrawElements(GL_TRIANGLES, m->sepd->nInd, GL_UNSIGNED_INT, 0);
+	/* Draw the mesh (each prms) */
+	for(i = 0; i < m->sepd->nPRMS; ++i)
+	{
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m->sepd->prms[i].EBO);
+		glDrawElements(GL_TRIANGLES, m->sepd->prms[i].nInds, GL_UNSIGNED_INT, 0);
+	}
 
 	/* Clean up */
 	glBindVertexArray(0);

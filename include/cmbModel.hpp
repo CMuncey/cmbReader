@@ -11,10 +11,8 @@
 #include "sklmChunk.h"
 using namespace std;
 
-/* SKLM chunk has a MSHS chunk, which has some number of MESH chunks */
-/* Each MESH chunk has SEPD index and a MATS index */
-/* SEPD chunk contains actual data and things like scale/weights */
-/* MATS chunk contains info about textures, draw settings */
+/* I think the SEPD needs an array of PRMS. All PRMS have 1 PRM (pretty sure) */
+/* Read how noclip is reading in SEPD/PRMS/PRM chunks again */
 
 struct sepdParams_t
 {
@@ -55,14 +53,30 @@ struct renderParams_t
 	matParams_t matP;
 };
 
+/* Pretty sure there's only ever 1 prm in a prms */
+/* So no point in making another struct for it */
+struct modelPRMS_t
+{
+	uint32_t EBO;
+	uint16_t* bones;
+
+	/* Not sure what bone index offset is for */
+	uint32_t   nBones;
+	uint32_t    nInds;
+	uint8_t  skinMode;
+	uint32_t bIndOffs;
+};
+
 struct modelSEPD_t
 {
 	uint32_t VAO, VBOs[8];
-	uint32_t EBO, UBOs[2];
+	uint32_t UBOs[2];
 
-	uint32_t nInd;
+	/* Primitives (EBOs) */
+	modelPRMS_t* prms;
+	uint32_t nPRMS;
 
-	sepdParams_t prms;
+	sepdParams_t params;
 };
 
 struct modelMAT_t
@@ -83,6 +97,7 @@ struct cmbMesh_t
 	cmbShader_t* shader;
 	modelSEPD_t*   sepd;
 	modelMAT_t*     mat;
+	glm::mat4*    bones;
 };
 
 struct cmbModel_t

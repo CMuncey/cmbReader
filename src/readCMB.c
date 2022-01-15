@@ -24,7 +24,8 @@ const char* tcLookUp2(uint16_t);
 int main(int argc, char** argv)
 {
 	cmb_t cmb;
-	int i;
+	int i, j, k, l, t;
+	prmChunk_t* PRMs;
 
 	if(argc < 2)
 	{
@@ -38,14 +39,28 @@ int main(int argc, char** argv)
 		return(1);
 	}
 
-	if(cmb.texC->nTex > 16)
-		printf("%s: %d\n", argv[1], cmb.texC->nTex);
+	for(i = t = 0; i < cmb.sklmC->shpC->nSEPDs; ++i)
+		for(j = 0; j < cmb.sklmC->shpC->sepdC[i].nPRMS; ++j)
+		{
+			t = cmb.sklmC->shpC->sepdC[i].prmsC[j].nPRM;
+			if(t != 1)
+				printf("%-30s: SEPD[%02d].PRMS[%02d].nPRM = %d\n", argv[1], i, j, t);
+		}
+	exit(1);
+	PRMs = malloc(t * sizeof(prmChunk_t));
 
-//	printCmb(cmb);
-//	printf("\n");
-//	getTexEnvInfo(&cmb);
-//	printf("\n");
-//	dumpTextures(&cmb);
+	//printf("%-30s has %2d primitives\n", argv[1], t);
+
+	for(i = l = 0; i < cmb.sklmC->shpC->nSEPDs; ++i)
+		for(j = 0; j < cmb.sklmC->shpC->sepdC[i].nPRMS; ++j)
+			for(k = 0; k < cmb.sklmC->shpC->sepdC[i].prmsC[j].nPRM; ++k, ++l)
+				memcpy(&(PRMs[l]), &(cmb.sklmC->shpC->sepdC[i].prmsC[j].prmC[k]), sizeof(prmChunk_t));
+
+	for(i = 0; i < t; ++i)
+		for(j = 0; j < t; ++j)
+			if(i != j)
+				if(PRMs[i].firstInd == PRMs[j].firstInd)
+					printf("%-30s: prm %d and %d match maybe\n", argv[1], i, j);
 
 	delCmb(cmb);
 

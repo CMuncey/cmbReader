@@ -20,14 +20,14 @@
 #include "glm/gtc/type_ptr.hpp"
 
 #define SWAP_INTERVAL 1
-#define WINDOW_NAME "Test"
-#define RESOLUTION 1
+#define RESOLUTION 3
 #define FULLSCREEN 0
 #define CAM_SPEED 2.5f
 #define SENSITIVITY 0.1f
 #define NEAR_PLANE 0.1f
 #define FAR_PLANE 200.0f
 
+/* DEBUG, just for testing */
 const float resolutions[] = {
 1280.0, 720.0,   //0 -> 720p  16:9
 1920.0, 1080.0,  //1 -> 1080p 16:9
@@ -37,7 +37,7 @@ const float resolutions[] = {
 
 cmbModel_t model;
 char* windowName;
-char wf, fm, ce;
+char wf, fm, ce, si, fs;
 float pX, pY, winX, winY, scale;
 mCamera_t cam;
 glm::mat4 proj;
@@ -91,6 +91,20 @@ void key_callback(GLFWwindow* w, int key, int scancode, int action, int mods)
 	if(key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
 		if(model.meshNum < model.nMeshes - 1)
 			model.meshNum++;
+
+	/* Set resolutions with F1-5 */
+	if(key >= GLFW_KEY_F1 && key <= GLFW_KEY_F5 && action == GLFW_PRESS)
+	{
+		tmp = key - GLFW_KEY_F1;
+		winX = resolutions[tmp * 2];
+		winY = resolutions[(tmp * 2) + 1];
+		glfwSetWindowSize(w, winX, winY);
+		framebuffer_size_callback(w, winX, winY);
+	}
+
+	/* Enable/Disable vsync with F6 */
+	if(key == GLFW_KEY_F6 && action == GLFW_PRESS)
+		si = !si, glfwSwapInterval(si);
 }
 
 void cursor_callback(GLFWwindow* w, double xpos, double ypos)
@@ -111,7 +125,7 @@ void cursor_callback(GLFWwindow* w, double xpos, double ypos)
 	pX = xpos;
 	pY = ypos;
 
-	/* Update the camera pitch/yaw */
+	/* Update the camera pitch/yaw (ignore roll) */
 	cam.addPYR(glm::vec3(dY, dX, 1.0f));
 }
 
@@ -150,6 +164,7 @@ int main(int argc, char** argv)
 	/* Initalise some stuff */
 	scale = 0.005f;
 	wf = ce = 0, fm = 1;
+	si = SWAP_INTERVAL;
 	cTime = pTime = fTime = 0.0f;
 	winX = resolutions[(RESOLUTION * 2)];
 	winY = resolutions[(RESOLUTION * 2) + 1];
@@ -164,7 +179,6 @@ int main(int argc, char** argv)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	//glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, 1);
 
 	/* Get the monitor */
 	if(FULLSCREEN)
@@ -196,7 +210,7 @@ int main(int argc, char** argv)
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_callback);
 	glfwSetScrollCallback(window, scroll_callback);
-	glfwSwapInterval(SWAP_INTERVAL);
+	glfwSwapInterval(si);
 	glEnable(GL_DEPTH_TEST);
 	//glClearColor(1.0f, 0.0f, 0.75f, 1.0f); // pink for testing alpha
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -240,7 +254,9 @@ int main(int argc, char** argv)
 		drawCmbModel(&model);
 
 		/* Update the fps and frame time in window title */
-		/* Do it here so that frame time can be slightly more accurate */
+		/* Frame time is only updated once per second, and is the time for */
+		/* that specific frame. Inverse FPS seems kinda pointless because */
+		/* it doesn't give info on how long the frame took to compute */
 		if(glfwGetTime() - fTime >= 1.0f)
 		{
 			snprintf(windowName, nameLen + 32, "%s | FPS: %5d | FT: %2.3fms", argv[1], tmp, (glfwGetTime() - cTime) * 1000);
